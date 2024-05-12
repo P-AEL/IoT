@@ -1,17 +1,22 @@
-import streamlit as st, pandas as pd, numpy as np
+import streamlit as st, pandas as pd, numpy as np, pyvista as pv
 import plotly.graph_objects as go
 from group_data import group_data
+from stpyvista import stpyvista
 from datetime import date
-
+from pyvista_test import plot_cube
 
 # Set page config
 st.set_page_config(
     page_title="Sensor Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
-)
+    )
 st.title("Sensor Dashboard Building A")
-
+# menu_items={
+# ...         'Get Help': 'https://www.extremelycoolapp.com/help',
+# ...         'Report a bug': "https://www.extremelycoolapp.com/bug",
+# ...         'About': "# This is a header. This is an *extremely* cool app!"
+# ...     }
 
 # Load data
 data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/output.csv")
@@ -25,7 +30,7 @@ input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10)
 # Filter data
 filtered_data = df_hour[(df_hour["device_id"].astype(str) == input_device) & (df_hour["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date)))]
 
-# Crete plot
+# Create plot
 def plot_figure(data, y):
         fig = go.Figure()
         fig.add_trace(
@@ -36,10 +41,8 @@ def plot_figure(data, y):
                 mode="lines+markers"
             )
         )
-        fig.update_layout(xaxis_title="Time", yaxis_title=y)
+        fig.update_layout(xaxis_title= "Time", yaxis_title= y)
         return fig
-
-
 
 # Columns
 c1, c2 = st.columns(2)
@@ -47,6 +50,7 @@ c1, c2 = st.columns(2)
 with c1:
 
     st.markdown("## Pauls Tolle Graphik")
+    plot_cube()
 
 with c2:
 
@@ -65,14 +69,14 @@ with c2:
     with kpi3:
         container = st.container(border=True)
         with container:
-            st.metric("CO2", f"{filtered_data["CO2"].mean().round(2)} ppm")
+            st.metric("CO2", f"{filtered_data["CO2"].mean().round(2)} ppm")                    
 
     tab1, tab2, tab3 = st.tabs(["Temperature", "Humidity", "CO2"])
 
     with tab1:
         st.markdown("### Temperature in °C")
         st.plotly_chart(plot_figure(filtered_data, "tmp"))
-
+       
     with tab2:
         st.markdown("### Humidity in %")
         st.plotly_chart(plot_figure(filtered_data, "hum"))
@@ -84,3 +88,5 @@ with c2:
 # Detailed data view
 st.markdown("## Detailed Data View") 
 st.dataframe(filtered_data)
+
+# detail view max min mean 
