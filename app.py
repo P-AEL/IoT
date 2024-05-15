@@ -19,7 +19,7 @@ st.title("Sensor Dashboard Building A")
 # ...     }
 
 # Load data
-data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/output.csv")
+data = pd.read_csv("output.csv")
 df_hour = group_data(data, "h")
 
 # Sidebar
@@ -50,8 +50,11 @@ c1, c2 = st.columns(2)
 with c1:
 
     st.markdown("## Pauls Tolle Graphik")
-    plot_cube()
-
+    plotter = plot_cube()
+    plotter.view_isometric()
+    plotter.add_scalar_bar()
+    plotter.background_color = "black"
+    stpyvista(plotter)
 with c2:
 
     kpi1, kpi2, kpi3 = st.columns(3)
@@ -59,17 +62,17 @@ with c2:
     with kpi1:
         container = st.container(border=True)
         with container:
-            st.metric("Temperature", f"{filtered_data["tmp"].mean().round(2)} °C")
+            st.metric("Temperature", f"{filtered_data['tmp'].mean().round(2)} °C")
     
     with kpi2:
         container = st.container(border=True)
         with container:
-            st.metric("Humidity", f"{filtered_data["hum"].mean().round(2)} %")
+            st.metric("Humidity", f"{filtered_data['hum'].mean().round(2)} %")
 
     with kpi3:
         container = st.container(border=True)
         with container:
-            st.metric("CO2", f"{filtered_data["CO2"].mean().round(2)} ppm")                    
+            st.metric("CO2", f"{filtered_data['CO2'].mean().round(2)} ppm")                    
 
     tab1, tab2, tab3 = st.tabs(["Temperature", "Humidity", "CO2"])
 

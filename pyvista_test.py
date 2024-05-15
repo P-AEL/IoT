@@ -11,10 +11,21 @@ import pyvista as pv
 # plotter.add_mesh(clipped, color="tan", opacity= 0.5, show_edges= True)
 # plotter.show()
 
-cube = pv.Cube().triangulate().subdivide(2)
-plotter = pv.Plotter()
-clipped = pv.Box([0, 0.2, 0, 0.2, 0, 0.2])
-plotter.add_mesh(cube, show_edges= True, opacity= 0.1)
-plotter.add_mesh(clipped, show_edges= True, opacity = 0.2)
-plotter.background_color = "black"
-plotter.screenshot("cube.png")
+
+# cube = pv.Cube().triangulate().subdivide(2)
+# plotter = pv.Plotter()
+# clipped = pv.Box([0, 0.2, 0, 0.2, 0, 0.2])
+# plotter.add_mesh(cube, show_edges= True, opacity= 0.1)
+# plotter.add_mesh(clipped, show_edges= True, opacity = 0.2)
+# plotter.background_color = "black"
+# plotter.screenshot("cube.png")
+
+def plot_cube():
+    cube = pv.Cube().triangulate().subdivide(2)
+    plotter = pv.Plotter()
+    clipped = pv.Box([0, 0.2, 0, 0.2, 0, 0.2])
+    plotter.add_mesh(cube, show_edges= True, opacity= 0.1)
+    plotter.add_mesh(clipped, show_edges= True, opacity = 0.2)
+    plotter.background_color = "black"
+    return plotter
+    
