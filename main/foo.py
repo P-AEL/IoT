@@ -42,24 +42,24 @@ class RNN(nn.Module):
         return out
     
 
-@torch.jit.script
-def train(model, train_dataloader, optimizer: torch.optim.Optimizer=torch.optim.AdamW, loss_fn: nn.Module=nn.MSELoss(), accumulation_steps: int=1, evaluation_steps: int=1000):
+# @torch.jit.script
+# def train(model, train_dataloader, optimizer: torch.optim.Optimizer=torch.optim.AdamW, loss_fn: nn.Module=nn.MSELoss(), accumulation_steps: int=1, evaluation_steps: int=1000):
     
-    tr_loss = 0
-    for step, batch in enumerate(train_dataloader):
-        model.train()
-        optimizer.zero_grad(set_to_none=True)
-        x, y = batch
-        y_pred = model(x)
-        loss = loss_fn(y_pred, y)
-        loss.backward()
-        if (step+1) % accumulation_steps == 0:
-            optimizer.step()
-            model.zero_grad(set_to_none=True)
-            tr_loss += loss.item()
-            if (step+1) % evaluation_steps == 0:
-                print(f"Step {step+1}, Loss: {tr_loss/evaluation_steps}")
-                tr_loss = 0
+#     tr_loss = 0
+#     for step, batch in enumerate(train_dataloader):
+#         model.train()
+#         optimizer.zero_grad(set_to_none=True)
+#         x, y = batch
+#         y_pred = model(x)
+#         loss = loss_fn(y_pred, y)
+#         loss.backward()
+#         if (step+1) % accumulation_steps == 0:
+#             optimizer.step()
+#             model.zero_grad(set_to_none=True)
+#             tr_loss += loss.item()
+#             if (step+1) % evaluation_steps == 0:
+#                 print(f"Step {step+1}, Loss: {tr_loss/evaluation_steps}")
+#                 tr_loss = 0
 
-def evaluate_model():
-    pass
+# def evaluate_model():
+#     pass
