@@ -1,6 +1,7 @@
 import streamlit as st, pandas as pd, numpy as np, pyvista as pv
 import plotly.graph_objects as go
 from group_data import group_data
+#from main.group_data import group_data
 from stpyvista import stpyvista
 from datetime import date
 from pyvista_test import plot_cube
@@ -24,7 +25,7 @@ df_hour = group_data(data, "h")
 
 # Sidebar
 st.sidebar.header("Sensor Dashboard Building A")
-input_device = st.sidebar.selectbox(label= "Select Room", options= df_hour["device_id"].unique().tolist())
+input_device = st.sidebar.selectbox(label= "Select Room", options= df_hour["device_id"].unique().tolist(), index= 1)
 input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
 
 # Filter data
@@ -50,7 +51,7 @@ c1, c2 = st.columns(2)
 with c1:
 
     st.markdown("## Pauls Tolle Graphik")
-    plotter = plot_cube()
+    plotter = plot_cube(input_device)
     plotter.view_isometric()
     plotter.add_scalar_bar()
     plotter.background_color = "black"
@@ -60,17 +61,17 @@ with c2:
     kpi1, kpi2, kpi3 = st.columns(3)
 
     with kpi1:
-        container = st.container(border=True)
+        container = st.container()#border=True)
         with container:
             st.metric("Temperature", f"{filtered_data['tmp'].mean().round(2)} °C")
     
     with kpi2:
-        container = st.container(border=True)
+        container = st.container()#border=True)
         with container:
             st.metric("Humidity", f"{filtered_data['hum'].mean().round(2)} %")
 
     with kpi3:
-        container = st.container(border=True)
+        container = st.container()#border=True)
         with container:
             st.metric("CO2", f"{filtered_data['CO2'].mean().round(2)} ppm")                    
 
