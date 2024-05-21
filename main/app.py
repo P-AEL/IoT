@@ -88,11 +88,11 @@ with tmp_tab1:
     
 with hum_tab2:
     st.markdown("### Temperature in °C mit Trendline")
-    st.plotly_chart(dp.plt_fig(df_gaps, "tmp", "markers", trendline=True), use_container_width=True)
+    st.plotly_chart(dp.plt_fig(df_gaps, "tmp", trendline=True), use_container_width=True)
 
 with co2_tab3:
     st.markdown("### CO2 in ppm")
-    st.plotly_chart(dp.plt_fig(df_gaps, "CO2", "markers"), use_container_width=True)
+    st.plotly_chart(dp.plt_fig(df_gaps, "CO2", "markers+lines"), use_container_width=True)
 
 
 # Detailed data view
@@ -103,5 +103,5 @@ st.dataframe(df_device_dt)
 
 # To do:
 # raum102 wirft fehler weil keine daten vorhanden -> kpi wirft round fehler
-# trendline funktion anpassen sodass graph obj
-# mher tabs hinzufügen
+# mehr tabs hinzufügen
+# dashboard anpassen

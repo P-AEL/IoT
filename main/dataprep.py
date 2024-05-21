@@ -80,7 +80,7 @@ def format_tensor(X: torch.tensor, window_size: int= 48) -> torch.tensor:
     X_new = torch.stack([torch.cat((torch.zeros(window_size-i, X.shape[1]), X[:i])) if i < window_size else X[i-window_size:i] for i in range(0, len(X))])
     return X_new[1:]
 
-def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline: bool=False) -> go.Figure:
+def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline: bool=False):
     """
     args:  df: pd.DataFrame
             y: str
@@ -92,7 +92,11 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
     if trendline:
         fig = px.scatter(df, x="date_time", y=y, trendline="rolling",trendline_color_override="red", trendline_options=dict(window=240, win_type="gaussian", function_args=dict(std=2)))
     else:
-        fig = px.scatter(df, x="date_time", y=y,)
-
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(x=df["date_time"], y=df[y], mode=mode)
+        )
     fig.update_layout(xaxis_title= "Time", yaxis_title= y)
     return fig
+
+    

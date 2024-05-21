@@ -32,7 +32,6 @@ input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10)
 df_device_dt = df_hour[(df_hour["device_id"].astype(str) == input_device) & (df_hour["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date)))]
 df_gaps = df_hour[df_hour["device_id"].astype(str) == input_device]
 
-
 # Columns
 c1, c2 = st.columns(2)
 
@@ -99,10 +98,9 @@ with co2_tab3:
 st.markdown("## Detailed Data View") 
 st.dataframe(df_device_dt)
 
-# detail view max min mean 
-
-
 
 # To do:
 # raum102 wirft fehler weil keine daten vorhanden -> kpi wirft round fehler
 # trendline funktion anpassen sodass graph obj
+# mher tabs hinzufügen
+# dashboard anpassen
