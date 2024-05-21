@@ -1,6 +1,31 @@
-import pandas as pd, numpy as np, torch
+import pandas as pd, numpy as np, plotly.graph_objects as go, plotly.express as px
 from copy import deepcopy
+from scipy import stats
+import torch
 
+def group_data(df: pd.DataFrame, freq: str="h") -> pd.DataFrame:
+    """
+    args:   df: pd.DataFrame
+            freq: str
+
+    returns: pd.DataFrame
+    """
+    df = deepcopy(df)
+    df['date_time'] = pd.to_datetime(df['date_time'])
+    all_columns_float_type = df.select_dtypes(include=['float64']).columns
+    all_columns_float_type = all_columns_float_type.tolist()
+    all_columns_float_type.append('device_id')
+    all_columns_float_type.append('date_time')
+    all_columns_int_type = df.select_dtypes(include=['int']).columns   
+    all_columns_int_type = all_columns_int_type.tolist()
+    all_columns_int_type.append('device_id')
+    all_columns_int_type.append('date_time')
+
+    df_hourly_float_values = df[all_columns_float_type].groupby(['device_id', pd.Grouper(key='date_time', freq=freq)]).agg("mean").reset_index()
+    df_hourly_int_values = df[all_columns_int_type].groupby(['device_id', pd.Grouper(key='date_time', freq=freq)]).agg("max").reset_index()
+
+    merged_df = df_hourly_float_values.merge(df_hourly_int_values, on=['device_id', 'date_time'])
+    return merged_df
 
 def cutoff_data(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
     """
@@ -53,33 +78,21 @@ def format_tensor(X: torch.tensor, window_size: int= 48) -> torch.tensor:
     returns: torch.tensor        
     """
     X_new = torch.stack([torch.cat((torch.zeros(window_size-i, X.shape[1]), X[:i])) if i < window_size else X[i-window_size:i] for i in range(0, len(X))])
-
     return X_new[1:]
 
-def group_data(df, freq):
+def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline: bool=False) -> go.Figure:
+    """
+    args:  df: pd.DataFrame
+            y: str
+            mode: str
+            trendline: bool
 
-    # changing date_time to datetime
-    df['date_time'] = pd.to_datetime(df['date_time'])
+    returns: go.Figure
+    """
+    if trendline:
+        fig = px.scatter(df, x="date_time", y=y, trendline="rolling",trendline_color_override="red", trendline_options=dict(window=240, win_type="gaussian", function_args=dict(std=2)))
+    else:
+        fig = px.scatter(df, x="date_time", y=y,)
 
-    #onehot encoding the gateway column and changing its type to int
-    df = pd.get_dummies(df, columns=['gateway'])
-    for col in ['gateway_drag-lps8-01', 'gateway_drag-lps8-02', 'gateway_drag-lps8-03', 'gateway_drag-lps8-05', 'gateway_drag-lps8-07', 'gateway_drag-lps8-08', 'gateway_drag-outd-01']:
-        df[col] = df[col].astype(int)
-
-    #splitting our columns into float and int types
-    all_columns_float_type = df.select_dtypes(include=['float64']).columns
-    all_columns_float_type = all_columns_float_type.tolist()
-    all_columns_float_type.append('device_id')
-    all_columns_float_type.append('date_time')
-    all_columns_int_type = df.select_dtypes(include=['int']).columns   
-    all_columns_int_type = all_columns_int_type.tolist()
-    all_columns_int_type.append('device_id')
-    all_columns_int_type.append('date_time')
-
-    # grouping by device_id and date_time and aggregating the values separately for float and int columns
-    df_hourly_float_values = df[all_columns_float_type].groupby(['device_id', pd.Grouper(key='date_time', freq=freq)]).agg("mean").reset_index()
-    df_hourly_int_values = df[all_columns_int_type].groupby(['device_id', pd.Grouper(key='date_time', freq=freq)]).agg("max").reset_index()
-
-    # merging the two dataframes and outputting the result
-    merged_df = df_hourly_float_values.merge(df_hourly_int_values, on=['device_id', 'date_time'])
-    return merged_df
+    fig.update_layout(xaxis_title= "Time", yaxis_title= y)
+    return fig
