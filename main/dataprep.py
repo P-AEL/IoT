@@ -90,7 +90,7 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
     returns: go.Figure
     """
     if trendline:
-        fig = px.scatter(df, x="date_time", y=y, trendline="rolling",trendline_color_override="red", trendline_options=dict(window=240, win_type="gaussian", function_args=dict(std=2)))
+        fig = px.scatter(df, x="date_time", y=y, trendline="rolling",trendline_color_override="red", trendline_options=dict(window=24, win_type="gaussian", function_args=dict(std=2)))
     else:
         fig = go.Figure()
         fig.add_trace(
