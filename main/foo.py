@@ -262,13 +262,16 @@ def evaluate_model(model, columns, window_size, device_id):
     returns: dataframe
     """
     if model == "lstm":
-        model = LSTM(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+        #model = LSTM(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+        print("not implemented")
     elif model == "rnn":
-        model = RNN(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+        #model = RNN(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+        print("not implemented")
     elif model == "transformer":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = Decoder(input=len(columns),d_model=128,max_len=100,num_heads=4,d_ff=120,device='cuda')
+        model = Decoder(input=len(columns),d_model=128,max_len=window_size,num_heads=4,d_ff=120,device=device)
         model.load_state_dict(torch.load('Decoder1.pth'))
+        model.float()
     df = pd.read_csv('aggregated_hourly.csv')
     df = df[df["device_id"] == device_id]
     df = df[columns+["date_time"]]
@@ -276,16 +279,24 @@ def evaluate_model(model, columns, window_size, device_id):
     max_date = df['date_time'].max()
     hourly_range = pd.date_range(start=min_date, end=max_date, freq='H')
     missing_hours = hourly_range[~hourly_range.isin(df['date_time'])]
+    df.date_time = pd.to_datetime(df.date_time)
     for i in missing_hours:
-        df_temp = df.loc[df["date_time"] < i].values.copy()
-        if len(df_temp) <= window_size:
-            X = torch.stack([torch.cat((torch.zeros(window_size-len(df_temp), df_temp.shape[1]), df_temp), dim=0)])
+        df_temp = df.loc[df["date_time"] < i][columns].copy()
+        df_temp = df_temp.astype(float)
+        df_temp_values = df_temp.values
+        print(df_temp_values.shape)
+        if len(df_temp_values) <= window_size:
+            X = torch.stack([torch.cat((torch.zeros(window_size-len(df_temp_values), df_temp_values.shape[1]), torch.from_numpy(df_temp_values)), dim=0)]).float()
         else:
-            X = torch.stack([df_temp[-window_size:]])
+            X = torch.stack([torch.from_numpy(df_temp_values[-window_size:])]).float()
+        model.eval()
         y_pred = model(X)
-        new_row = df_temp[-1].copy()
-        new_row[-1] = i
-        new_row[-2] = y_pred.item()
-        df = df.append(pd.Series(new_row, index=df.columns), ignore_index=True)
+        new_row = df_temp.iloc[-1].copy()
+        new_row.at['date_time'] = i
+        index_of_tmp = columns.index("tmp")
+        new_row[index_of_tmp] = y_pred.item()
+        new_row_series = pd.Series(new_row, index=df.columns)
+        df = pd.concat([df, new_row_series.to_frame().T], ignore_index=True)
     return df
+        
         
