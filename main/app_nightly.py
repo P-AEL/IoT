@@ -1,9 +1,7 @@
 import streamlit as st, pandas as pd, numpy as np, pyvista as pv
-import plotly.graph_objects as go
 from stpyvista import stpyvista
 from datetime import date
 import dataprep as dp
-from scipy import stats
 #from pyvista_test import plot_cube
 
 # Page config
@@ -11,13 +9,7 @@ st.set_page_config(
     page_title="Sensor Dashboard",
     layout="wide",
     initial_sidebar_state="expanded"
-    )
-st.title("Sensor Dashboard Building A")
-# menu_items={
-# ...         'Get Help': 'https://www.extremelycoolapp.com/help',
-# ...         'Report a bug': "https://www.extremelycoolapp.com/bug",
-# ...         'About': "# This is a header. This is an *extremely* cool app!"
-# ...     }
+)
 
 # Load data
 data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/main/output.csv")
@@ -75,8 +67,7 @@ with c2:
         with st.expander("See explanation"):
             st.write(f"No data available for the selected room {input_device} and room {input_date}. To see what data is available, look 'Gaps in the data'.")              
 
-    
-    tab_tmp, tab_hum, tab_co2, tab_voc = st.tabs(["Temperature", "Humidity", "CO2", "VOC"])
+    tab_tmp, tab_hum, tab_co2, tab_voc, tab_wifi = st.tabs(["Temperature", "Humidity", "CO2", "VOC", "WIFI"])
 
     with tab_tmp:
         st.markdown("### Temperature in °C")
@@ -94,27 +85,9 @@ with c2:
         st.markdown("### VOC in ppb")
         st.plotly_chart(dp.plt_fig(df_device_dt, "VOC"))
 
-
-# Gaps in the data and predictions
-st.markdown("## Gaps in the Data")
-tmp_tab1, hum_tab2, co2_tab3 = st.tabs(["Tmp gaps", "Tmp trend", "Tmp pred"])
-
-with tmp_tab1:
-    st.markdown("### Temperature in °C seit Aufzeichnungsbeginn")
-    st.plotly_chart(dp.plt_fig(df_gaps, "tmp", "markers"), use_container_width=True)
-    
-with hum_tab2:
-    st.markdown("### Temperature in °C mit Trendline")
-    st.plotly_chart(dp.plt_fig(df_gaps, "tmp", trendline=True), use_container_width=True)
-
-with co2_tab3:
-    st.markdown("### CO2 in ppm")
-    st.plotly_chart(dp.plt_fig(df_gaps, "CO2", "markers+lines"), use_container_width=True)
-
-
-# Detailed data view
-st.markdown("## Detailed Data View") 
-st.dataframe(df_device_dt)
+    with tab_wifi:
+        st.markdown("### Num of WIFI Devices detected")
+        st.plotly_chart(dp.plt_fig(df_device_dt, "WIFI"))
 
 
 
