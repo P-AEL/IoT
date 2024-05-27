@@ -44,54 +44,33 @@ with c1:
 
 with c2:
 
-    try:
-        kpi_tmp, kpi_hum, kpi_co2 = st.columns(3)
+    kpi_columns = st.columns(3)
+    kpi_dict = {
+        "Temperature": {"df_col": "tmp", "unit": "°C"},
+        "Humidity": {"df_col": "hum", "unit": "%"},
+        "CO2": {"df_col": "CO2", "unit": "ppm"},
+    }
 
-        with kpi_tmp:
-            container = st.container(border=True)
-            with container:
-                st.metric("Temperature", f"{df_device_dt['tmp'].mean().round(2)} °C")
+    for column, (name, info) in zip(kpi_columns, kpi_dict.items()):
+        with column, st.container(border=True):
+            value = f"{df_device_dt[info['df_col']].mean().round(2)} {info['unit']}" if not df_device_dt.empty else "n/a"
+            st.metric(name, value)
 
-        with kpi_hum:
-            container = st.container(border=True)
-            with container:
-                st.metric("Humidity", f"{df_device_dt['hum'].mean().round(2)} %")
-
-        with kpi_co2:
-            container = st.container(border=True)
-            with container:
-                st.metric("CO2", f"{df_device_dt['CO2'].mean().round(2)} ppm")   
-
-    except AttributeError:
-        st.markdown("## No data available")
+    if df_device_dt.empty:
         with st.expander("See explanation"):
-            st.write(f"No data available for the selected room {input_device} and room {input_date}. To see what data is available, look 'Gaps in the data'.")              
+            st.write(f"No data available for the selected room {input_device} and room {input_date}. To see what data is available, look 'Gaps in the data'.")         
 
-    tab_tmp, tab_hum, tab_co2, tab_voc, tab_wifi = st.tabs(["Temperature", "Humidity", "CO2", "VOC", "WIFI"])
-
-    with tab_tmp:
-        st.markdown("### Temperature in °C")
-        st.plotly_chart(dp.plt_fig(df_device_dt, "tmp"))
     
-    with tab_hum:
-        st.markdown("### Humidity in %")
-        st.plotly_chart(dp.plt_fig(df_device_dt, "hum"))
+    tabs = st.tabs(["Temperature", "Humidity", "CO2", "VOC"])
+    tab_info = {
+        "Temperature": {"key": "tmp", "unit": "°C"},
+        "Humidity": {"key": "hum", "unit": "%"},
+        "CO2": {"key": "CO2", "unit": "ppm"},
+        "VOC": {"key": "VOC", "unit": "ppb"},
+    }
 
-    with tab_co2:
-        st.markdown("### CO2 in ppm")
-        st.plotly_chart(dp.plt_fig(df_device_dt, "CO2"))
+    for tab, (name, info) in zip(tabs, tab_info.items()):
+        with tab:
+            st.markdown(f"### {name} in {info['unit']}")
+            st.plotly_chart(dp.plt_fig(df_device_dt, info['key']))
 
-    with tab_voc:
-        st.markdown("### VOC in ppb")
-        st.plotly_chart(dp.plt_fig(df_device_dt, "VOC"))
-
-    with tab_wifi:
-        st.markdown("### Num of WIFI Devices detected")
-        st.plotly_chart(dp.plt_fig(df_device_dt, "WIFI"))
-
-
-
-# To do:
-# raum102 wirft fehler weil keine daten vorhanden -> kpi wirft round fehler
-# mehr tabs hinzufügen
-# dashboard anpassen

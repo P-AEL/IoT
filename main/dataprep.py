@@ -27,6 +27,7 @@ def group_data(df: pd.DataFrame, freq: str="h") -> pd.DataFrame:
     merged_df = df_hourly_float_values.merge(df_hourly_int_values, on=['device_id', 'date_time'])
     return merged_df
 
+
 def cutoff_data(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFrame:
     """
     args:   df: pd.DataFrame
@@ -90,7 +91,7 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
     returns: go.Figure
     """
     if trendline:
-        fig = px.scatter(df, x="date_time", y=y, trendline="rolling", trendline_color_override="red", trendline_options=dict(window=24, win_type="gaussian", function_args=dict(std=2)))
+        fig = px.scatter(df, x= "date_time", y=y, trendline="rolling", trendline_color_override="red", trendline_options=dict(window=24, win_type="gaussian", function_args=dict(std=2)))
     else:
         fig = go.Figure()
         fig.add_trace(
