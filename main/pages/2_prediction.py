@@ -2,6 +2,7 @@ import streamlit as st, pandas as pd, numpy as np
 import plotly.graph_objects as go
 from datetime import date
 import dataprep as dp
+import foo as foo
 
 
 
