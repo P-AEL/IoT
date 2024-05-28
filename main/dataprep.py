@@ -100,4 +100,3 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
     fig.update_layout(xaxis_title= "Time", yaxis_title= y)
     return fig
 
-    

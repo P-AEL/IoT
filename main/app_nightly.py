@@ -74,3 +74,11 @@ with c2:
             st.markdown(f"### {name} in {info['unit']}")
             st.plotly_chart(dp.plt_fig(df_device_dt, info['key']))
 
+
+
+
+# To do:
+# app nightly
+    # 3 Kpi metrics hinzufügen wifi voc 
+    # wifi als tab hinzufügen 
+    

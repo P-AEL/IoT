@@ -17,7 +17,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 # Load data
 data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/main/output.csv")
 
@@ -38,7 +37,6 @@ unit_dict = {
     "VOC": "ppb",
     "WIFI": "dBm"
 } 
-
 
 agg_dict = {
     'd': ('h', 'Select day', '%Y-%m-%d'),
