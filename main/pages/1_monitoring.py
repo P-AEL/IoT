@@ -18,12 +18,13 @@ st.markdown(
 )
 
 # Load data
-data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/main/output.csv")
+@st.cache_data 
+def load_data(filepath: str= "output.parquet"):
+    df = pd.read_parquet(filepath)
+    return df
 
-a0 = ["hka-aqm-a017", "hka-aqm-a014"]
-a1 = ["hka-aqm-a101", "hka-aqm-a102", "hka-aqm-a103", "hka-aqm-a106", "hka-aqm-a107", "hka-aqm-a108", "hka-aqm-a111", "hka-aqm-a112"]
-data = data[data["device_id"].isin(a0 + a1)]  
-data["device_id"] = data["device_id"].str.replace("hka-aqm-", "")
+data = load_data("/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet")
+
 
 #Sidebar
 st.sidebar.header("Monitoring Dashbaord for building A")
@@ -44,7 +45,7 @@ agg_dict = {
     'm': ('w', 'Select month', '%m/%Y'),
     'y': ('m', 'Select year', '%Y')
 }
-
+# cacheable
 df = dp.group_data(data, agg_dict[input_agg][0])
 df["min"] = df["date_time"].dt.minute
 df["hour"] = df["date_time"].dt.hour

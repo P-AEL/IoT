@@ -4,8 +4,6 @@ from datetime import date
 import dataprep as dp
 from foo import evaluate_model
 
-
-
 # Load data
 a0 = ["hka-aqm-a017", "hka-aqm-a014"]
 a1 = ["hka-aqm-a101", "hka-aqm-a102", "hka-aqm-a103", "hka-aqm-a106", "hka-aqm-a107", "hka-aqm-a108", "hka-aqm-a111", "hka-aqm-a112"]

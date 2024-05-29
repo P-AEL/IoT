@@ -252,57 +252,57 @@ class Decoder(torch.nn.Module):
         x = self.ff(x) #shape am ende noch (500,1), soll des so ?
         return x[:, -1].squeeze()
     
-def evaluate_model(model, columns, window_size, device_id):
-    """
-    args:   model: torch.nn.Module
-            columns: on which columns the model was trained
-            window_size: lookback window size
-            device_id: Room
+# def evaluate_model(model, columns, window_size, device_id):
+#     """
+#     args:   model: torch.nn.Module
+#             columns: on which columns the model was trained
+#             window_size: lookback window size
+#             device_id: Room
 
-    returns: dataframe
-    """
-    if model == "lstm":
-        #model = LSTM(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
-        print("not implemented")
-    elif model == "rnn":
-        #model = RNN(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
-        print("not implemented")
-    elif model == "transformer":
-        device = torch.device('cpu')
-        #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        model = Decoder(input=len(columns),d_model=128,max_len=window_size,num_heads=4,d_ff=120,device=device)
-        model.load_state_dict(torch.load('Decoder1.pth', map_location=device)) # map_device weil cpu only
-        model.float()
-    df = pd.read_csv('aggregated_hourly.csv')
-    df = df[df["device_id"] == device_id]
-    df = df[columns+["date_time"]]
-    min_date = df['date_time'].min()
-    max_date = df['date_time'].max()
-    hourly_range = pd.date_range(start=min_date, end=max_date, freq='h')
-    #missing_hours = hourly_range[~hourly_range.isin(df['date_time'])]
-    missing_hours = hourly_range[~hourly_range.isin(df['date_time'].astype(hourly_range.dtype))]
-    df.date_time = pd.to_datetime(df.date_time)
-    for i in missing_hours:
-        df_temp = df.loc[df["date_time"] < i][columns].copy()
-        df_temp = df_temp.astype(float)
-        df_temp_values = df_temp.values
-        if len(df_temp_values) <= window_size:
-            X = torch.stack([torch.cat((torch.zeros(window_size-len(df_temp_values), df_temp_values.shape[1]), torch.from_numpy(df_temp_values)), dim=0)]).float()
-        else:
-            X = torch.stack([torch.from_numpy(df_temp_values[-window_size:])]).float()
-        model.eval()
-        y_pred = model(X)
-        new_row = df_temp.iloc[-1].copy()
-        new_row.at['date_time'] = i
-        index_of_tmp = columns.index("tmp")
-        #new_row[index_of_tmp] = y_pred.item()
-        new_row.iloc[index_of_tmp] = y_pred.item()
-        new_row_series = pd.Series(new_row, index=df.columns)
-        df = pd.concat([df, new_row_series.to_frame().T], ignore_index=True)
-    return df
+#     returns: dataframe
+#     """
+#     if model == "lstm":
+#         #model = LSTM(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+#         print("not implemented")
+#     elif model == "rnn":
+#         #model = RNN(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
+#         print("not implemented")
+#     elif model == "transformer":
+#         device = torch.device('cpu')
+#         #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#         model = Decoder(input=len(columns),d_model=128,max_len=window_size,num_heads=4,d_ff=120,device=device)
+#         model.load_state_dict(torch.load('Decoder1.pth', map_location=device)) # map_device weil cpu only
+#         model.float()
+#     df = pd.read_csv('aggregated_hourly.csv')
+#     df = df[df["device_id"] == device_id]
+#     df = df[columns+["date_time"]]
+#     min_date = df['date_time'].min()
+#     max_date = df['date_time'].max()
+#     hourly_range = pd.date_range(start=min_date, end=max_date, freq='h')
+#     #missing_hours = hourly_range[~hourly_range.isin(df['date_time'])]
+#     missing_hours = hourly_range[~hourly_range.isin(df['date_time'].astype(hourly_range.dtype))]
+#     df.date_time = pd.to_datetime(df.date_time)
+#     for i in missing_hours:
+#         df_temp = df.loc[df["date_time"] < i][columns].copy()
+#         df_temp = df_temp.astype(float)
+#         df_temp_values = df_temp.values
+#         if len(df_temp_values) <= window_size:
+#             X = torch.stack([torch.cat((torch.zeros(window_size-len(df_temp_values), df_temp_values.shape[1]), torch.from_numpy(df_temp_values)), dim=0)]).float()
+#         else:
+#             X = torch.stack([torch.from_numpy(df_temp_values[-window_size:])]).float()
+#         model.eval()
+#         y_pred = model(X)
+#         new_row = df_temp.iloc[-1].copy()
+#         new_row.at['date_time'] = i
+#         index_of_tmp = columns.index("tmp")
+#         #new_row[index_of_tmp] = y_pred.item()
+#         new_row.iloc[index_of_tmp] = y_pred.item()
+#         new_row_series = pd.Series(new_row, index=df.columns)
+#         df = pd.concat([df, new_row_series.to_frame().T], ignore_index=True)
+#     return df
 
 
-def evaluate_model_new(model, df, columns, window_size):
+def pred_blanks(model, df, columns, window_size):
     """
     args:   model: torch.nn.Module
             df: preprocessed dataframe

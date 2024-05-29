@@ -11,14 +11,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data
-data = pd.read_csv("/Users/florian/Documents/github/study/IoT/IoT/main/output.csv")
-df_hour = dp.group_data(data, "h")
+@st.cache_data 
+def load_data(filepath: str= "output.parquet"):
+    df = pd.read_parquet(filepath)
+    return df
 
-a0 = ["hka-aqm-a017", "hka-aqm-a014"]
-a1 = ["hka-aqm-a101", "hka-aqm-a102", "hka-aqm-a103", "hka-aqm-a106", "hka-aqm-a107", "hka-aqm-a108", "hka-aqm-a111", "hka-aqm-a112"]
-df_hour = df_hour[df_hour["device_id"].isin(a0 + a1)]  
-df_hour["device_id"] = df_hour["device_id"].str.replace("hka-aqm-", "")
+# st.chache_resource for ml models and database resources
+
+# Load data
+data = load_data("/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet")
+df_hour = dp.group_data(data, "h")
 
 # Sidebar
 st.sidebar.header("Sensor Dashboard Building A")
@@ -81,4 +83,3 @@ with c2:
 # app nightly
     # 3 Kpi metrics hinzufügen wifi voc 
     # wifi als tab hinzufügen 
-    
