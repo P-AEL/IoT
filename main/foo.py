@@ -207,31 +207,25 @@ class Decoder(torch.nn.Module):
         super(Decoder, self).__init__()
 
         self.embed = torch.nn.Linear(input, d_model).to(device)
-        self.positonal_encoding = PositionalEncoding(d_model, max_len=max_len,device=device).to(device)
+        self.positonal_encoding = PositionalEncoding(d_model, max_len=max_len, device=device).to(device)
         self.norm = torch.nn.LayerNorm(d_model).to(device)
+        self.dropout = torch.nn.Dropout(0.2).to(device)
         self.attn = MultiHeadAttention(d_model, num_heads).to(device)
-        self.norm_2 = torch.nn.LayerNorm(d_model).to(device)
-        self.linear1 = torch.nn.Linear(d_model, d_model).to(device)
-        self.Relu = torch.nn.SELU().to(device)
-        self.attn2 = MultiHeadAttention(d_model, num_heads).to(device)
-        self.norm_3 = torch.nn.LayerNorm(d_model).to(device)
-        self.linear2 = torch.nn.Linear(d_model, d_model).to(device)
-        self.attn3 = MultiHeadAttention(d_model, num_heads).to(device)
         self.ff = torch.nn.Sequential(
             torch.nn.LayerNorm(d_model),
             torch.nn.Linear(d_model, d_ff),
             torch.nn.SELU(),
-            torch.nn.Linear(d_ff, 1)
+            torch.nn.Dropout(0.2),
+            torch.nn.Linear(d_ff,d_model),
+            torch.nn.SELU(),
+            torch.nn.Linear(d_model, 1)
         ).to(device)
 
     def forward(self, x):
         """
-        forward pass of decoder layer
+        Forward pass of simplified decoder layer
 
         :param x: input tensor (query)
-        :param memory: input tensor (key, value)
-        :param src_mask: source mask
-        :param tgt_mask: target mask
         :return: output tensor
         """
         x = self.embed(x)
@@ -239,17 +233,8 @@ class Decoder(torch.nn.Module):
         x_norm = self.norm(x)
         x_att, _ = self.attn(x_norm, x_norm, x_norm)
         x = x + x_att
-        x = self.norm_2(x)
-        x_att2, _ = self.attn2(x, x, x)
-        x_att2 = self.linear1(x_att2)
-        x_att2 = self.Relu(x_att2)
-        x = x + x_att2
-        x = self.norm_3(x)
-        x_att3, _ = self.attn3(x, x, x)
-        x_att3 = self.linear2(x_att3)
-        x_att3 = self.Relu(x_att3)
-        x = x + x_att3
-        x = self.ff(x) #shape am ende noch (500,1), soll des so ?
+        x = self.dropout(x)
+        x = self.ff(x)
         return x[:, -1].squeeze()
     
 # def evaluate_model(model, columns, window_size, device_id):
