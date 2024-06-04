@@ -64,8 +64,6 @@ for i in df.year.unique():
         df_daysmissing.loc[df_daysmissing.year == i, "missing_days"] = (df_daysmissing.total_days_2023 - df_daysmissing.date)/df_daysmissing.total_days_2023
 
 
-
-
 col_table, col_plt = st.columns(2)
 
 with col_table:
@@ -123,19 +121,24 @@ st.plotly_chart(px.bar(average_rssi, x=average_rssi.index, y='rssi'), use_contai
 
 toc.h3("CO2")
 st.write("The levels of CO2 in the air and potential health problems are: 400 ppm: average outdoor air level. 400–1,000 ppm: typical level found in occupied spaces with good air exchange. 1,000–2,000 ppm: level associated with complaints of drowsiness and poor air.")
-st.write(df.loc[df.CO2 > 1000].iloc[:,:-14])
 st.plotly_chart(px.scatter(df.loc[df.CO2 > 1000], x='date_time', y='CO2', color='device_id'), use_container_width= True)
+with st.expander("See data"):
+    st.write(df.loc[df.CO2 > 1000].iloc[:,:-14])
 
 toc.h3("VOC")
 st.write("Volatile Organic Compounds (VOCs), sometimes known as chemical pollutants, are gases emitted by many of the goods we use to build and maintain our homes. Many of these pollutants are colorless and are odorless at low levels. They can be released into the environment during the use as well as storage of products. While products emit VOCs, the amount tends to decrease with age.")
 st.write("0 to 400 ppb: This is the acceptable level of VOC indoors. You should not expect short-term effects such as irritation or discomfort. 400 to 2,200 ppb: Short-term exposure can result in noticeable effects such as headaches, nausea, dizziness, and irritation of the respiratory tract and eyes.")
-st.write(df.loc[df.VOC > 1000].iloc[:,:-14])
 st.plotly_chart(px.scatter(df.loc[df.VOC > 1000], x='date_time', y='VOC', color='device_id'), use_container_width= True)
+with st.expander("See data"):
+    st.write(df.loc[df.VOC > 1000].iloc[:,:-14])
 
 
 toc.h3("BLE")
-st.write(df.loc[df.BLE > 100].iloc[:,:-14])
 st.plotly_chart(px.scatter(df.loc[df.BLE > 100], x='date_time', y='BLE', color='device_id'), use_container_width= True)
+with st.expander("See data"):
+    st.write(df.loc[df.BLE > 100].iloc[:,:-14])
+
+
 st.write("Zeitlich passen alle Punkte entweder zu Semester Ende oder Anfang. Zu den Räumen muss gesagt werden:")
 st.markdown("* Raum 101 ist ein großer Hörsaal/Aula")
 st.markdown("* Raum 102 ist der Lernraum West/Ruhebereich")
