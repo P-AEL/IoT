@@ -17,7 +17,7 @@ def load_data(filepath: str= "output.parquet"):
     df = pd.read_parquet(filepath)
     return df
 
-data = load_data("/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet")
+data = load_data("D:/Users/paulh/Desktop/6.semester/IoT/main/output.parquet")
 
 # Unique plot funciton for this page 
 def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
@@ -39,7 +39,7 @@ toc.h1("Exploratory Data Analysis")
 toc.h2("Data Overview")
 
 toc.h3("Gaps in the data")
-st.write(f"We currently have {df.shape[0]} rows and {df.shape[1]} columns in our dataset. In general we should have data from {df.date_time.min().date()} to {df.date_time.max().date()}, which is , as you can see in the following plot, is not the case.")
+st.write(f"We currently have {df.shape[0]} rows and {df.shape[1]} columns in our dataset. In general we should have data from {df.date_time.min().date()} to {df.date_time.max().date()}, which is , as you can see in the following plot, not the case.")
 st.plotly_chart(plt(df, x= "date_time", y= "tmp", color= "device_id"), use_container_width= True)
 st.write(f"These gaps in the data are due to the fact that some devices in some rooms either could not uphold a stable connection to the endpoint or were turned off. The gaps are generally big but tend to differ in size and quantity per device. In the following table we can see the relative number of missing days per device and year.")
 
@@ -83,6 +83,7 @@ st.write(f"The devices {device_ids} have only been actively collecting data for 
 
 st.plotly_chart(px.bar(average_hours_per_day, x=average_hours_per_day.index, y='hours_per_day'), use_container_width= True)
 
+st.write(f"The lowest average hours per day is {round(average_hours_per_day.min().values[0],2)} for the room {average_hours_per_day.idxmin().values[0]}")
 
 st.write("Datapoints with funny tmp and hum values")
 
@@ -97,37 +98,43 @@ toc.h2("Feature Aanalyis")
 
 toc.h3("SNR")
 
-st.write("Wie wir sehen können liegt der Median bei -2.557895, wobei die 25% und 75% Quantile bei -6.500000 und 1.400000. In basic terms, SNR is the difference between the desired signal and the noise floor. Also, in terms of definition, the noise floor is the specious background transmissions that are produced by other devices or by devices that are unintentionally generating interference on a similar frequency.")
-st.markdown("* **5 dB bis 10 dB:** Signal Rausch Verhältnis ist zu gering für eine stabile Verbindung. Rauschen ist vom eigentlichen Signal kaum zu unterscheiden.")
-st.markdown("* **10 dB bis 15 dB:** Gilt als minimal akzeptabler Wert für eine unzuverlässige Verbindung.")
-st.markdown("* **15 dB bis 25 dB:** Ist die typischerweise minimal akzeptable Stufe für eine schlechte Verbindungsqualität.")
-st.markdown("* **25 dB bis 40 dB:** Gilt als gute Verbindungsqualität.")
-st.markdown("* **41 dB oder höher:** Gilt als ausgezeichnete Verbindungsqualität.")
-st.write("Wie in unserem Beispiel betrachtet werden kann haben wir sehr geringe SNR Werte, was dauraufhin deutet dass die Verbindung zu anderen Geräten sehr schlecht ist.")
+st.write("As we can see, the median is -2.557895, with the 25% and 75% quantiles at -6.500000 and 1.400000, respectively. In basic terms, SNR is the difference between the desired signal and the noise floor. Also, in terms of definition, the noise floor is the spurious background transmissions that are produced by other devices or by devices that are unintentionally generating interference on a similar frequency.")
+st.markdown("* **5 dB to 10 dB:** Signal-to-noise ratio is too low for a stable connection. Noise is barely distinguishable from the actual signal.")
+st.markdown("* **10 dB to 15 dB:** Considered the minimally acceptable value for an unreliable connection.")
+st.markdown("* **15 dB to 25 dB:** Typically considered the minimally acceptable level for poor connection quality.")
+st.markdown("* **25 dB to 40 dB:** Considered good connection quality.")
+st.markdown("* **41 dB or higher:** Considered excellent connection quality.")
+st.write("As can be seen in our example, we have very low SNR values, indicating that the connection to other devices is very poor.")
 
 toc.h3("RSSI")
 
-st.write("Das fast gleiche wie bei SNR stellen wir auch bei RSSI fest. RSSI, or 'Received Signal Strength Indicator,' is a measurement of how well your device can hear a signal from an access point or router.")
-st.markdown("FRM-RSSI | RSSI-Wert | Qualität der Verbindung")
-st.markdown("* **40 bis 45** | -50 | Ausgezeichnet")
-st.markdown("* **30 bis 40** | -60 | Sehr gut")
-st.markdown("* **20 bis 30** | -70 | Gut")
-st.markdown("* **20 bis 30** | -80 | Niedrig")
-st.markdown("* **10 bis 20** | -90 | Sehr niedrig")
-st.markdown("* **0 bis 10**  | -100| Kein Signal")
+st.write("Similar to SNR, we also observe the same with RSSI. RSSI, or 'Received Signal Strength Indicator,' is a measurement of how well your device can hear a signal from an access point or router.")
+st.markdown("FRM-RSSI | RSSI Value | Connection Quality")
+st.markdown("* **40 to 45** | -50 | Excellent")
+st.markdown("* **30 to 40** | -60 | Very Good")
+st.markdown("* **20 to 30** | -70 | Good")
+st.markdown("* **20 to 30** | -80 | Low")
+st.markdown("* **10 to 20** | -90 | Very Low")
+st.markdown("* **0 to 10**  | -100 | No Signal")
+
 
 average_rssi = df.groupby('device_id')['rssi'].mean()
 st.plotly_chart(px.bar(average_rssi, x=average_rssi.index, y='rssi'), use_container_width= True)
 
 toc.h3("CO2")
-st.write("The levels of CO2 in the air and potential health problems are: 400 ppm: average outdoor air level. 400–1,000 ppm: typical level found in occupied spaces with good air exchange. 1,000–2,000 ppm: level associated with complaints of drowsiness and poor air.")
+st.write("The levels of CO2 in the air and potential health problems are:")
+st.markdown("* 400 ppm: average outdoor air level.")
+st.markdown("* 400–1,000 ppm: typical level found in occupied spaces with good air exchange.")
+st.markdown("* 1,000–2,000 ppm: level associated with complaints of drowsiness and poor air.")
 st.plotly_chart(px.scatter(df.loc[df.CO2 > 1000], x='date_time', y='CO2', color='device_id'), use_container_width= True)
 with st.expander("See data"):
     st.write(df.loc[df.CO2 > 1000].iloc[:,:-14])
 
 toc.h3("VOC")
 st.write("Volatile Organic Compounds (VOCs), sometimes known as chemical pollutants, are gases emitted by many of the goods we use to build and maintain our homes. Many of these pollutants are colorless and are odorless at low levels. They can be released into the environment during the use as well as storage of products. While products emit VOCs, the amount tends to decrease with age.")
-st.write("0 to 400 ppb: This is the acceptable level of VOC indoors. You should not expect short-term effects such as irritation or discomfort. 400 to 2,200 ppb: Short-term exposure can result in noticeable effects such as headaches, nausea, dizziness, and irritation of the respiratory tract and eyes.")
+st.markdown("VOC Level | Health Effects")
+st.markdown("* 0 to 400 ppb: This is the acceptable level of VOC indoors. You should not expect short-term effects such as irritation or discomfort.")
+st.markdown("* 400 to 2,200 ppb: Short-term exposure can result in noticeable effects such as headaches, nausea, dizziness, and irritation of the respiratory tract and eyes.")
 st.plotly_chart(px.scatter(df.loc[df.VOC > 1000], x='date_time', y='VOC', color='device_id'), use_container_width= True)
 with st.expander("See data"):
     st.write(df.loc[df.VOC > 1000].iloc[:,:-14])
@@ -139,10 +146,10 @@ with st.expander("See data"):
     st.write(df.loc[df.BLE > 100].iloc[:,:-14])
 
 
-st.write("Zeitlich passen alle Punkte entweder zu Semester Ende oder Anfang. Zu den Räumen muss gesagt werden:")
-st.markdown("* Raum 101 ist ein großer Hörsaal/Aula")
-st.markdown("* Raum 102 ist der Lernraum West/Ruhebereich")
-st.markdown("* Raum 103 ist die Bibliothek")
+st.write("All points in time coincide either with the end or the beginning of the semester. Regarding the rooms, it must be mentioned:")
+st.markdown("* Room 101 is a large lecture hall/auditorium")
+st.markdown("* Room 102 is the West learning room/quiet area")
+st.markdown("* Room 103 is the library")
 
 toc.h2("Correlation analysis of target variables")
 df["shifted_Target"] = 0
