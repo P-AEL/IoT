@@ -1,6 +1,5 @@
 import streamlit as st, dataprep as dp, pandas as pd, plotly.express as px
 from stoc import stoc
-from copy import deepcopy
 
 st.set_page_config(
     layout="wide",
@@ -10,14 +9,12 @@ st.set_page_config(
 # Initialize stoc for generating a table of contents
 toc = stoc()
 
-
 # Load data
 @st.cache_data 
 def load_data(filepath: str= "output.parquet"):
     df = pd.read_parquet(filepath)
     return df
 
-data = load_data("D:/Users/paulh/Desktop/6.semester/IoT/main/output.parquet")
 
 # Unique plot funciton for this page 
 def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
@@ -25,11 +22,10 @@ def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="devic
     return fig
 
 
+# Load data
+filepath = "/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet"
+data = load_data(filepath)
 df = dp.group_data(data, "h")
-
-
-
-
 
 
 #--- Page content ---#

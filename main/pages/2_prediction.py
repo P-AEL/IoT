@@ -141,16 +141,12 @@ df_hour = dp.group_data(data, "h")
 
 # Sidebar
 st.sidebar.header("Sensor Dashboard Building A")
-input_device = st.sidebar.selectbox(label= "Select Room", options= df_hour["device_id"].unique().tolist(), index= 2)
-input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
-input_pred_model = st.sidebar.selectbox(label= "Select Model", options= ["LSTM", "Transformer"], index= 0)
-pred_start_date = st.sidebar.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
-pred_end_date = st.sidebar.date_input(label= "Select End Date", value= date(2023,10,1), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
+input_device = st.sidebar.selectbox(label= "Select Room", options= df_hour["device_id"].unique().tolist() + ["all"], index= 2)
+
 
 # Filter data
-df_device_dt = df_hour[(df_hour["device_id"].astype(str) == input_device) & (df_hour["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date)))]
-df_gaps = df_hour[df_hour["device_id"].astype(str) == input_device]
-
+df_gaps = dp.build_lvl_df(df_hour, a0 + a1, output_cols= ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"], reset_ind= False).reset_index(drop= False) if input_device == "all" else df_hour[(df_hour["device_id"].astype(str) == input_device)]
+print(df_gaps)
 
 # Konvertieren Sie pd.Timestamp in datetime.date für den Slider
 min_date = df_gaps["date_time"].min().date()
@@ -169,7 +165,7 @@ with tmp_tab1:
 
     st.markdown("### Temperature in °C seit Aufzeichnungsbeginn")
     st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width=True)
-    st.dataframe(df_device_dt)
+    st.dataframe(df_gaps)
 
     
 with tab_trend:
@@ -183,10 +179,14 @@ with tab_trend:
 
     st.markdown("### Temperature in °C mit Trendline")
     st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
-    st.dataframe(df_device_dt)
+    st.dataframe(df_gaps)
 
 
 with tab_pred:
+
+    input_pred_model = st.selectbox(label= "Select Model", options= ["LSTM", "Transformer"], index= 0)
+    pred_start_date = st.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
+    pred_end_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
 
     if input_pred_model == "LSTM":
         pred_data = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
