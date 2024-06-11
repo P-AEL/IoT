@@ -67,8 +67,6 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
         y_train = y_train[:-1]
         y_test = y_test[:-1]
 
-        print(X_train, X_test, y_train, y_test)
-        
         #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
         test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
 
@@ -111,8 +109,6 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
         X_train = X_train_new
         X_test = X_test_new
         
-        print(X_train, X_test, y_train, y_test)
-
         #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
         test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
         
@@ -136,6 +132,26 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
     return output
 
 
+def create_ensemble(model_predictions, targets):
+    """
+    args: model_predictions: list of numpy arrays or tensors
+    return: tensor
+    """
+    # Konvertiert die Liste der Vorhersagen in Numpy-Arrays und stellt sicher, dass sie die richtige Form haben
+    predictions_np = [pred.numpy() if isinstance(pred, torch.Tensor) else pred for pred in model_predictions]
+    predictions_np = [pred.reshape(-1, 1) for pred in predictions_np]
+
+    # Konvertiert die Liste der Vorhersagen zurück in Tensoren
+    predictions_tensor = torch.stack([torch.from_numpy(pred) for pred in predictions_np])
+
+    # Berechnet den Durchschnitt entlang der 0. Achse (Modellebene)
+    ensemble = torch.mean(predictions_tensor, dim=0)
+    ensemble_loss = nn.MSELoss()(ensemble, torch.from_numpy(targets))
+
+    return [ensemble, ensemble_loss]
+
+
+
 data = load_data(filename_data)
 df_hour = dp.group_data(data, "h")
 
@@ -146,7 +162,6 @@ input_device = st.sidebar.selectbox(label= "Select Room", options= df_hour["devi
 
 # Filter data
 df_gaps = dp.build_lvl_df(df_hour, a0 + a1, output_cols= ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"], reset_ind= False).reset_index(drop= False) if input_device == "all" else df_hour[(df_hour["device_id"].astype(str) == input_device)]
-print(df_gaps)
 
 # Konvertieren Sie pd.Timestamp in datetime.date für den Slider
 min_date = df_gaps["date_time"].min().date()
@@ -184,7 +199,7 @@ with tab_trend:
 
 with tab_pred:
 
-    input_pred_model = st.selectbox(label= "Select Model", options= ["LSTM", "Transformer"], index= 0)
+    input_pred_model = st.selectbox(label= "Select Model", options= ["LSTM", "Transformer", "Ensemble"], index= 0)
     pred_start_date = st.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
     pred_end_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
 
@@ -222,10 +237,38 @@ with tab_pred:
                 ],
                 layout=dict(title="Temperature in °C with predictions")
             )
-        st.write("loss: ", loss.item())
         st.plotly_chart(
             fig,
             use_container_width=True
         )
         st.write("loss: ", loss.item())
+
+
+    elif input_pred_model == "Ensemble":    
+        
+        pred_data_lstm = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
+        pred_data_trsnf = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
+        predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
+        predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
+
+
+        ensemble = create_ensemble([predictions_lstm, predictions_trsnf], targets_lstm)
+        ensemble_vec, ensemble_loss = ensemble[0], ensemble[1]
+
+        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        x = x[(x >= selected_range[0]) & (x <= selected_range[1])]
+        fig = go.Figure(
+                data=[
+                    go.Scatter(x= x,y=targets_lstm.reshape(-1).tolist(), name="Targets", mode="lines"),#, line=dict(color="blue")),
+                    go.Scatter(x= x, y=ensemble_vec.reshape(-1).tolist(), name="Predictions", mode="lines", line=dict(color="red"))
+                ],
+                layout=dict(title="Temperature in °C with predictions")
+            )
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+        st.write("loss: ", ensemble_loss.item())
+
+
     
