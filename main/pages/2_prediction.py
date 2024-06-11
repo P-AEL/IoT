@@ -92,14 +92,14 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
         # Tun Sie dasselbe für die Ziele
         inversed_targets = feature_scaler.inverse_transform(test_targets)
 
-        output = [inversed_predictions, inversed_targets]
+        output = [inversed_predictions, inversed_targets, test_loss]
 
     if pred_model == "Transformer":
 
 
         X = df_mean.to_numpy()
         y = df_mean["tmp"].shift(-1).to_numpy()
-        X_train, X_test, y_train, y_test = dp.train_test_split(X, y,train_size=0.95)
+        X_train, X_test, y_train, y_test = dp.train_test_split(X, y,train_size=0.8)
         X_train_new, X_test_new = dp.format_tensor(X_train,window_size=100), dp.format_tensor(X_test,window_size=100)
         y_train = y_train[:-1]#.unsqueeze(1)
         y_test = y_test[:-1]#.unsqueeze(1)
@@ -118,18 +118,17 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
 
         model.eval()
 
-        y_pred = []
-        with torch.no_grad():
-            for x, y in test_loader:
-                x = x.to("cpu")
-                print(x.shape)
-                output = model(x)
-                y_pred.append(output)
+        test_features, test_targets = next(iter(test_loader))  # Get a batch of train data
+        test_targets = test_targets.unsqueeze(1)  # Expand target to match the output shape
 
-        y_pred = torch.cat(y_pred, dim=0).cpu().numpy()
-        y_true = y_test.numpy()
+        with torch.no_grad():  # Disable gradient computation
+            predictions = model(test_features)  # Make predictions
 
-        output = [y_pred, y_true]
+        # Calculate the mean squared error of the predictions
+        criterion = nn.MSELoss()
+        test_loss = criterion(predictions, test_targets)
+
+        output = [predictions, test_targets, test_loss]
    
     return output
 
@@ -159,20 +158,29 @@ st.markdown("## Gaps in the Data")
 min_date = df_gaps["date_time"].min().date()
 max_date = df_gaps["date_time"].max().date()
 
-selected_range = st.slider("Select a range", min_value=min_date, max_value=max_date, value = ((min_date), (max_date)))
-
-# Konvertieren Sie datetime.date zurück in pd.Timestamp für die Filterung
-selected_range = pd.to_datetime(selected_range[0]), pd.to_datetime(selected_range[1])
-
-df_filtered = df_gaps[(df_gaps["date_time"] >= selected_range[0]) & (df_gaps["date_time"] <= selected_range[1])]
-
 tmp_tab1, tab_trend, tab_pred = st.tabs(["Tmp gaps", "Tmp trend", "Tmp pred"])
 
 with tmp_tab1:
+
+    selected_range = st.slider("Select a range", key= "slider1", min_value=min_date, max_value=max_date, value = ((min_date), (max_date)))
+
+    # Konvertieren Sie datetime.date zurück in pd.Timestamp für die Filterung
+    selected_range = pd.to_datetime(selected_range[0]), pd.to_datetime(selected_range[1])
+
+    df_filtered = df_gaps[(df_gaps["date_time"] >= selected_range[0]) & (df_gaps["date_time"] <= selected_range[1])]
+
     st.markdown("### Temperature in °C seit Aufzeichnungsbeginn")
     st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width=True)
     
 with tab_trend:
+
+    selected_range1 = st.slider("Select a range", key= "slider2", min_value=min_date, max_value=max_date, value = ((min_date), (max_date)))
+
+    # Konvertieren Sie datetime.date zurück in pd.Timestamp für die Filterung
+    selected_range1 = pd.to_datetime(selected_range1[0]), pd.to_datetime(selected_range1[1])
+
+    df_filtered = df_gaps[(df_gaps["date_time"] >= selected_range1[0]) & (df_gaps["date_time"] <= selected_range1[1])]
+
     st.markdown("### Temperature in °C mit Trendline")
     st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
 
@@ -183,6 +191,7 @@ with tab_pred:
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        x = x[(x >= selected_range[0]) & (x <= selected_range[1])]
         fig = go.Figure(
                 data=[
                     go.Scatter(x= x,y=inversed_targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
@@ -199,6 +208,7 @@ with tab_pred:
         predictions = pred_data[0]
         targets = pred_data[1] 
         x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        x = x[(x >= selected_range[0]) & (x <= selected_range[1])]
         fig = go.Figure(
                 data=[
                     go.Scatter(x= x,y=targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
