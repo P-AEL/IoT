@@ -40,26 +40,30 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
 
     df_mean = dp.build_lvl_df(df_cutoff, rooms, features, reset_ind= True)
 
-    scaler = StandardScaler()
-    df_mean_scaled = deepcopy(df_mean)
-    df_mean_scaled["target"] = df_mean_scaled[f"{target}"].shift(-1)
-    df_mean_scaled = scaler.fit_transform(df_mean_scaled)
-
-    X = df_mean_scaled[:, :-1]
-    y = df_mean_scaled[:, -1]
-
-    X_train, X_test, y_train, y_test = dp.train_test_split(X, y, train_size= train_size)
-
-    X_train_new, X_test_new = dp.format_tensor(X_train), dp.format_tensor(X_test)
-    X_train = X_train_new
-    X_test = X_test_new
-    y_train = y_train[:-1]
-    y_test = y_test[:-1]
-    
-    train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
-    test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
 
     if pred_model == "LSTM":
+
+        scaler = StandardScaler()
+        df_mean_scaled = deepcopy(df_mean)
+        df_mean_scaled["target"] = df_mean_scaled[f"{target}"].shift(-1)
+        df_mean_scaled = scaler.fit_transform(df_mean_scaled)
+
+        X = df_mean_scaled[:, :-1]
+        y = df_mean_scaled[:, -1]
+
+        X_train, X_test, y_train, y_test = dp.train_test_split(X, y, train_size= train_size)
+
+        X_train_new, X_test_new = dp.format_tensor(X_train, 100), dp.format_tensor(X_test, 100)
+        X_train = X_train_new
+        X_test = X_test_new
+        y_train = y_train[:-1]
+        y_test = y_test[:-1]
+
+        print(X_train, X_test, y_train, y_test)
+        
+        #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
+        test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
+
         model = foo.LSTM_1(input_size=X_train.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout=0, activation='relu')
         model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/lstm.pth"))
 
@@ -73,7 +77,7 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
 
         # Calculate the mean squared error of the predictions
         criterion = nn.MSELoss()
-        train_loss = criterion(predictions, test_targets)
+        test_loss = criterion(predictions, test_targets)
 
         feature_index = 0
 
@@ -90,20 +94,42 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
 
         output = [inversed_predictions, inversed_targets]
 
-    elif pred_model == "Transformer":
+    if pred_model == "Transformer":
+
+
+        X = df_mean.to_numpy()
+        y = df_mean["tmp"].shift(-1).to_numpy()
+        X_train, X_test, y_train, y_test = dp.train_test_split(X, y,train_size=0.95)
+        X_train_new, X_test_new = dp.format_tensor(X_train,window_size=100), dp.format_tensor(X_test,window_size=100)
+        y_train = y_train[:-1]#.unsqueeze(1)
+        y_test = y_test[:-1]#.unsqueeze(1)
+
+        X_train = X_train_new
+        X_test = X_test_new
+        
+        print(X_train, X_test, y_train, y_test)
+
+        #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
+        test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
+        
         model = foo.Decoder(4, 128, 100, 4, 256, device="cpu")
         model.to("cpu")
-        model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/Decoder_besser.pth"), map_location=torch.device('cpu'))
+        model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/Decoder_besser.pth", map_location="cpu"))
 
         model.eval()
 
         y_pred = []
         with torch.no_grad():
             for x, y in test_loader:
+                x = x.to("cpu")
+                print(x.shape)
                 output = model(x)
                 y_pred.append(output)
 
-        output = [y_pred, y]
+        y_pred = torch.cat(y_pred, dim=0).cpu().numpy()
+        y_true = y_test.numpy()
+
+        output = [y_pred, y_true]
    
     return output
 
@@ -140,7 +166,7 @@ selected_range = pd.to_datetime(selected_range[0]), pd.to_datetime(selected_rang
 
 df_filtered = df_gaps[(df_gaps["date_time"] >= selected_range[0]) & (df_gaps["date_time"] <= selected_range[1])]
 
-tmp_tab1, tab_trend, tab_pred, tab_pred_trans = st.tabs(["Tmp gaps", "Tmp trend", "Tmp pred", "test"])
+tmp_tab1, tab_trend, tab_pred = st.tabs(["Tmp gaps", "Tmp trend", "Tmp pred"])
 
 with tmp_tab1:
     st.markdown("### Temperature in °C seit Aufzeichnungsbeginn")
@@ -151,45 +177,39 @@ with tab_trend:
     st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
 
 with tab_pred:
-    st.markdown("### Prediction")
-    try: 
 
-        if input_pred_model == "LSTM":        
-            pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
-            inversed_predicitons = pred_data[0]
-            inversed_targets = pred_data[1] 
-            x = pd.date_range(start= pred_start_date, end= pred_end_date)
-            fig = go.Figure(
-                    data=[
-                        go.Scatter(x= x,y=inversed_targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
-                        go.Scatter(x= x, y=inversed_predicitons.reshape(-1).tolist(), name="Predictions", mode="lines", line=dict(color="red"))
-                    ],
-                    layout=dict(title="Temperature in °C with predictions")
-                )
-            st.plotly_chart(fig,
-                use_container_width=True
+    if input_pred_model == "LSTM":
+        pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
+        inversed_predicitons = pred_data[0]
+        inversed_targets = pred_data[1] 
+        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        fig = go.Figure(
+                data=[
+                    go.Scatter(x= x,y=inversed_targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
+                    go.Scatter(x= x, y=inversed_predicitons.reshape(-1).tolist(), name="Predictions", mode="lines", line=dict(color="red"))
+                ],
+                layout=dict(title="Temperature in °C with predictions")
             )
-            
-    except FileNotFoundError:
-        st.error("Model not found. Please select another model.")
+        st.plotly_chart(fig,
+            use_container_width=True
+        )
 
-with tab_pred_trans:
-            pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
-            predictions = pred_data[0]
-            targets = pred_data[1] 
-            x = pd.date_range(start= pred_start_date, end= pred_end_date)
-            fig = go.Figure(
-                    data=[
-                        go.Scatter(x= x,y=targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
-                        go.Scatter(x= x, y=predictions.reshape(-1).tolist(), name="Predictions", mode="lines", line=dict(color="red"))
-                    ],
-                    layout=dict(title="Temperature in °C with predictions")
-                )
-            st.plotly_chart(
-                fig,
-                use_container_width=True
+    elif input_pred_model == "Transformer":    
+        pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
+        predictions = pred_data[0]
+        targets = pred_data[1] 
+        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        fig = go.Figure(
+                data=[
+                    go.Scatter(x= x,y=targets.reshape(-1).tolist(), name="Targets", mode="lines", line=dict(color="blue")),
+                    go.Scatter(x= x, y=predictions.reshape(-1).tolist(), name="Predictions", mode="lines", line=dict(color="red"))
+                ],
+                layout=dict(title="Temperature in °C with predictions")
             )
-
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 
 
 
