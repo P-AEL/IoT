@@ -70,7 +70,7 @@ def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", star
         #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
         test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
 
-        model = foo.LSTM_1(input_size=X_train.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout=0, activation='relu')
+        model = foo.LSTM(input_size=X_train.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout=0, activation='relu')
         model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/lstm.pth"))
 
         model.eval()  # Set the model to evaluation mode

@@ -2,6 +2,54 @@ import pandas as pd, numpy as np, plotly.graph_objects as go, plotly.express as 
 from copy import deepcopy
 from scipy import stats
 import torch
+import torch.utils
+import os
+import logging
+import pandas as pd
+import numpy as np
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+from sklearn.preprocessing import StandardScaler
+from collections import namedtuple
+
+logging.basicConfig(level=logging.INFO)
+
+def check_file_exists(filename: str):
+    """
+    Check if a file exists.
+    """
+    if not os.path.exists(filename):
+        logging.error(f"File {filename} does not exist.")
+        raise FileNotFoundError(f"File {filename} does not exist.")
+
+def combine_files(file_paths):
+    """
+    Combine data from multiple files into a single DataFrame.
+    """
+    combined_df = pd.DataFrame()
+
+    for file_path in file_paths:
+        check_file_exists(file_path)
+        try:
+            df = pd.read_csv(file_path, sep=';', header=1)
+            combined_df = pd.concat([combined_df, df])
+        except Exception as e:
+            logging.error(f"Failed to read file {file_path}: {e}")
+            continue
+
+    return combined_df
+
+def save_to_parquet(df, filename):
+    """
+    Save a DataFrame to a Parquet file.
+    """
+    try:
+        df.to_parquet(filename)
+        logging.info(f"Data saved to {filename}")
+    except Exception as e:
+        logging.error(f"Failed to save data to {filename}: {e}")
+
+
 
 def group_data(df: pd.DataFrame, freq: str="h") -> pd.DataFrame:
     """
@@ -100,3 +148,70 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
     fig.update_layout(xaxis_title= "Time", yaxis_title= y)
     return fig
 
+
+DataLoaders = namedtuple('DataLoaders', ['train', 'test'])
+Data = namedtuple('Data', ['x', 'y', 'scaler', 'loader'])
+
+def to_sequences(obs: pd.DataFrame, window_size: int, target: str, features: list) -> Data:
+    """
+    Convert a DataFrame into sequences of data.
+    """
+    x = []
+    y = []
+    seq_size = window_size
+    for g_id in obs['group'].unique():
+        group_df = obs[obs['group'] == g_id]
+        for i in range(len(group_df) - seq_size):
+            window = group_df[i:(i + seq_size)]
+            x.append(window[features].values)
+        y.extend(group_df[f"{target}"].iloc[seq_size:])
+
+    x, y = torch.tensor(np.array(x), dtype= torch.float32).view(-1, seq_size, 4), torch.tensor(y, dtype= torch.float32).view(-1, 1)
+
+    return Data(x, y, None, None)
+
+def prepare_data(filename: str='main/aggregated_hourly.csv', window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
+    """
+    Prepare data for training and testing.
+    """
+    check_file_exists(filename)
+
+    df = pd.read_csv(filename)
+    df.date_time = pd.to_datetime(df.date_time)
+    df = df[['device_id', 'date_time'] + features]
+    timedelta = 3600
+    df['consecutive_data_point'] = (df['date_time'] - df['date_time'].shift(1)).dt.total_seconds() == timedelta
+    df['consecutive_data_point'] = df['consecutive_data_point'].astype(int)
+    df['reset'] = (df['consecutive_data_point'] == 0) | (df['device_id'] != df['device_id'].shift(1))
+    df['group'] = df['reset'].cumsum()
+    df['consecutive_data_points'] = df.groupby(['device_id', 'group'])['consecutive_data_point'].cumsum() - df['consecutive_data_point']
+    df['group_size'] = df.groupby(['device_id', 'group'])['consecutive_data_point'].transform('count')
+    df_cpy = deepcopy(df[df['group_size'] > window_size])
+    df_cpy.drop(['reset', 'consecutive_data_point', 'consecutive_data_points', 'group_size'], axis=1, inplace=True)
+    threshold_date = df_cpy.sort_values('date_time', ascending=True)['date_time'].quantile(train_ratio)
+    df_train = df_cpy[df_cpy['date_time'] < threshold_date]
+    df_test = df_cpy[df_cpy['date_time'] >= threshold_date]
+
+    scaler = None
+    if scaling:
+        scaler = StandardScaler()
+        df_train_scaled, df_test_scaled = deepcopy(df_train), deepcopy(df_test)
+        df_train_scaled[features] = scaler.fit_transform(df_train_scaled[features])
+        df_test_scaled[features] = scaler.transform(df_test_scaled[features])
+        df_train = df_train_scaled
+        df_test = df_test_scaled
+
+    train_data = to_sequences(df_train, window_size, target, features)
+    test_data = to_sequences(df_test, window_size, target, features)
+
+    # Setup data loaders for batch
+    train_dataset = TensorDataset(train_data.x, train_data.y)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
+
+    test_dataset = TensorDataset(test_data.x, test_data.y)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=8, pin_memory=True)
+
+    train_data = train_data._replace(loader=train_loader, scaler=scaler)
+    test_data = test_data._replace(loader=test_loader, scaler=scaler)
+
+    return {'train': train_data, 'test': test_data}

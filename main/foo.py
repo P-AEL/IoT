@@ -2,51 +2,9 @@ import torch, torch.nn as nn, torch.optim as optim
 import numpy as np
 import pandas as pd
 
-
 class LSTM(nn.Module):
-
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
-        super().__init__()
-
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
-
-        self.optimizer = optim.Adam(self.parameters(), lr=0.0001)
-
-    def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-
-        out, _ = self.lstm(x, (h0, c0))
-        out = self.fc(out[:, -1, :])
-        return out
-    
-
-class RNN(nn.Module):
-
-    def __init__(self, input_size, hidden_size, num_layers, output_size):
-        super().__init__()
-
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
-
-    def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size)
-
-        out, _ = self.rnn(x, h0)
-        out = self.fc(out[:, -1, :])
-        return out
-
-
-class LSTM_1(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, output_size, dropout=0.5, activation='relu'):
-        super(LSTM_1, self).__init__()
+        super(LSTM, self).__init__()
         
         self.hidden_size = hidden_size
         self.num_layers = num_layers
@@ -76,30 +34,6 @@ class LSTM_1(nn.Module):
         out = self.fc(out)
         out = self.activation(out)  # Aktivierungsfunktion anwenden
         return out
-
-
-# @torch.jit.script
-# def train(model, train_dataloader, optimizer: torch.optim.Optimizer=torch.optim.AdamW, loss_fn: nn.Module=nn.MSELoss(), accumulation_steps: int=1, evaluation_steps: int=1000):
-    
-#     tr_loss = 0
-#     for step, batch in enumerate(train_dataloader):
-#         model.train()
-#         optimizer.zero_grad(set_to_none=True)
-#         x, y = batch
-#         y_pred = model(x)
-#         loss = loss_fn(y_pred, y)
-#         loss.backward()
-#         if (step+1) % accumulation_steps == 0:
-#             optimizer.step()
-#             model.zero_grad(set_to_none=True)
-#             tr_loss += loss.item()
-#             if (step+1) % evaluation_steps == 0:
-#                 print(f"Step {step+1}, Loss: {tr_loss/evaluation_steps}")
-#                 tr_loss = 0
-
-# def evaluate_model():
-#     pass
-
 
 class PositionalEncoding(torch.nn.Module):
     """
@@ -270,86 +204,3 @@ class Decoder(torch.nn.Module):
         x = self.dropout(x)
         x = self.ff(x)
         return x[:, -1].squeeze()
-    
-# def evaluate_model(model, columns, window_size, device_id):
-#     """
-#     args:   model: torch.nn.Module
-#             columns: on which columns the model was trained
-#             window_size: lookback window size
-#             device_id: Room
-
-#     returns: dataframe
-#     """
-#     if model == "lstm":
-#         #model = LSTM(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
-#         print("not implemented")
-#     elif model == "rnn":
-#         #model = RNN(input_size=len(columns), hidden_size=128, num_layers=2, output_size=1)
-#         print("not implemented")
-#     elif model == "transformer":
-#         device = torch.device('cpu')
-#         #device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#         model = Decoder(input=len(columns),d_model=128,max_len=window_size,num_heads=4,d_ff=120,device=device)
-#         model.load_state_dict(torch.load('Decoder1.pth', map_location=device)) # map_device weil cpu only
-#         model.float()
-#     df = pd.read_csv('aggregated_hourly.csv')
-#     df = df[df["device_id"] == device_id]
-#     df = df[columns+["date_time"]]
-#     min_date = df['date_time'].min()
-#     max_date = df['date_time'].max()
-#     hourly_range = pd.date_range(start=min_date, end=max_date, freq='h')
-#     #missing_hours = hourly_range[~hourly_range.isin(df['date_time'])]
-#     missing_hours = hourly_range[~hourly_range.isin(df['date_time'].astype(hourly_range.dtype))]
-#     df.date_time = pd.to_datetime(df.date_time)
-#     for i in missing_hours:
-#         df_temp = df.loc[df["date_time"] < i][columns].copy()
-#         df_temp = df_temp.astype(float)
-#         df_temp_values = df_temp.values
-#         if len(df_temp_values) <= window_size:
-#             X = torch.stack([torch.cat((torch.zeros(window_size-len(df_temp_values), df_temp_values.shape[1]), torch.from_numpy(df_temp_values)), dim=0)]).float()
-#         else:
-#             X = torch.stack([torch.from_numpy(df_temp_values[-window_size:])]).float()
-#         model.eval()
-#         y_pred = model(X)
-#         new_row = df_temp.iloc[-1].copy()
-#         new_row.at['date_time'] = i
-#         index_of_tmp = columns.index("tmp")
-#         #new_row[index_of_tmp] = y_pred.item()
-#         new_row.iloc[index_of_tmp] = y_pred.item()
-#         new_row_series = pd.Series(new_row, index=df.columns)
-#         df = pd.concat([df, new_row_series.to_frame().T], ignore_index=True)
-#     return df
-
-
-def pred_blanks(model, df, columns, window_size):
-    """
-    args:   model: torch.nn.Module
-            df: preprocessed dataframe
-            columns: on which columns the model was trained
-            window_size: lookback window size
-            device_id: Room
-
-    returns: dataframe
-    """
-    device = torch.device('cpu')
-
-    if model == "transformer":
-        model = Decoder(input=len(columns),d_model=128,max_len=window_size,num_heads=4,d_ff=120,device=device)
-        model.load_state_dict(torch.load('Decoder1.pth', map_location=device))
-        model.float()
-    else:
-        print("not implemented")
-        return
-
-    hourly_range = pd.date_range(start=df['date_time'].min(), end=df['date_time'].max(), freq='h')
-    missing_hours = hourly_range[~hourly_range.isin(df['date_time'].astype(hourly_range.dtype))]
-
-    for i in missing_hours:
-        df_temp = df.loc[df["date_time"] < i][columns].astype(float)
-        X = torch.stack([torch.cat((torch.zeros(max(0, window_size-len(df_temp)), len(columns)), torch.from_numpy(df_temp.values[-window_size:])), dim=0)]).float()
-        new_row = df_temp.iloc[-1].copy()
-        new_row.at['date_time'] = i
-        new_row.iloc[columns.index("tmp")] = model(X).item()
-        df = pd.concat([df, pd.DataFrame(new_row).T], ignore_index= True)
-
-    return df

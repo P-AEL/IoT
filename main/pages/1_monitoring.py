@@ -1,5 +1,7 @@
-import streamlit as st, dataprep as dp, pandas as pd, numpy as np
-
+import streamlit as st, dataprep as dp, pandas as pd
+import os
+import logging
+logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(
     layout="wide",
@@ -17,13 +19,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # Load data
 @st.cache_data 
 def load_data(filepath: str= "output.parquet"):
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
     df = pd.read_parquet(filepath)
     return df
 
-data = load_data("/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet")
+filename = "/Users/florian/Documents/github/study/IoT/IoT/main/agg_hourly.parquet"
+data = load_data(filename)
 
 
 #Sidebar
