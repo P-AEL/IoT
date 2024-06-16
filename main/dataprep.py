@@ -176,7 +176,13 @@ def prepare_data(filename: str='main/aggregated_hourly.csv', window_size: int=50
     """
     check_file_exists(filename)
 
-    df = pd.read_csv(filename)
+    _, file_extension = os.path.splitext(filename)
+    if file_extension == '.csv':
+        df = pd.read_csv(filename)
+    elif file_extension == '.parquet':
+        df = pd.read_parquet(filename)
+    else:
+        print(f'Unsupported file type: {file_extension}')
     df.date_time = pd.to_datetime(df.date_time)
     df = df[['device_id', 'date_time'] + features]
     timedelta = 3600
