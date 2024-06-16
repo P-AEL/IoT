@@ -14,13 +14,13 @@ from collections import namedtuple
 
 logging.basicConfig(level=logging.INFO)
 
-def check_file_exists(filename: str):
+def check_file_exists(filepath: str):
     """
     Check if a file exists.
     """
-    if not os.path.exists(filename):
-        logging.error(f"File {filename} does not exist.")
-        raise FileNotFoundError(f"File {filename} does not exist.")
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
 
 def combine_files(file_paths):
     """
@@ -39,15 +39,15 @@ def combine_files(file_paths):
 
     return combined_df
 
-def save_to_parquet(df, filename):
+def save_to_parquet(df, filepath):
     """
     Save a DataFrame to a Parquet file.
     """
     try:
-        df.to_parquet(filename)
-        logging.info(f"Data saved to {filename}")
+        df.to_parquet(filepath)
+        logging.info(f"Data saved to {filepath}")
     except Exception as e:
-        logging.error(f"Failed to save data to {filename}: {e}")
+        logging.error(f"Failed to save data to {filepath}: {e}")
 
 
 
@@ -170,20 +170,20 @@ def update_Data(obs: pd.DataFrame, window_size: int, target: str, features: list
 
     return Data(x, y, None, None)
 
-def create_DataLoader(filename: str="main/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
+def create_DataLoader(filepath: str="main/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
     """
     Prepare data for training and testing.
     """
-    check_file_exists(filename)
+    check_file_exists(filepath)
 
-    _, file_extension = os.path.splitext(filename)
+    _, file_extension = os.path.splitext(filepath)
     if file_extension == '.csv':
-        df = pd.read_csv(filename)
+        df = pd.read_csv(filepath)
     elif file_extension == '.parquet':
-        df = pd.read_parquet(filename)
+        df = pd.read_parquet(filepath)
     else:
         print(f'Unsupported file type: {file_extension}')
-        
+
     df.date_time = pd.to_datetime(df.date_time)
     df = df[['device_id', 'date_time'] + features]
     timedelta = 3600
