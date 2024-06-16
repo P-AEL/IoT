@@ -20,7 +20,7 @@ st.set_page_config(
 # Load data
 a0 = ["a017", "a014"]
 a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
-filename = "/Users/florian/Documents/github/study/IoT/IoT/main/agg_hourly.parquet"
+filename = "D:/Users/paulh/Desktop/6.semester/IoT/main/agg_hourly.parquet"
 
 
 @st.cache_data 
@@ -35,7 +35,7 @@ def load_data(filepath: str= "output.parquet") -> pd.DataFrame:
 
 
 @st.cache_data
-def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool= True, features: list=["CO2", "hum", "VOC", "tmp"], start_date: str= "", end_date: str= "") -> list:
+def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool= True, features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "") -> list:
     """
     """
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -60,13 +60,15 @@ def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool
 
     if model == "LSTM":
         
-        lstm_filename = "/Users/florian/Documents/github/study/IoT/IoT/main/lstm_gut.pth"
+        lstm_filename = "D:/Users/paulh/Desktop/6.semester/IoT/main/lstm_gut.pth"
         lstm = foo.LSTM(input_size= 4, hidden_size=100, num_layers=1, output_size=1, dropout= 0)
         lstm.load_state_dict(torch.load(lstm_filename, map_location= device))
 
         lstm.eval()
         with torch.no_grad():
+            print("test", test_features)
             predictions = lstm(test_features)
+            print("pred", predictions)
 
         test_loss = nn.MSELoss()(predictions, test_targets)
 
@@ -80,13 +82,13 @@ def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool
             inversed_targets = feature_scaler.inverse_transform(test_targets.to(device).detach().numpy().reshape(-1, 1))
             inversed_predictions = feature_scaler.inverse_transform(predictions.to(device).detach().numpy().reshape(-1, 1))
 
-            print(inversed_predictions, inversed_targets, test_loss)
+            #print(inversed_predictions, inversed_targets, test_loss)
 
             output = [inversed_predictions, inversed_targets, test_loss]
 
     elif model == "Transformer":
         
-        transformer_filename = "/Users/florian/Documents/github/study/IoT/IoT/main/transformer_gut.pth"
+        transformer_filename = "D:/Users/paulh/Desktop/6.semester/IoT/main/transformer_gut.pth"
         transformer = foo.Decoder(input=4, d_model=64, max_len=50, num_heads= 4, d_ff= 100, device= device)
         transformer.load_state_dict(torch.load(transformer_filename, map_location= device))
 
@@ -102,6 +104,7 @@ def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool
             feature_scaler = StandardScaler()
             feature_scaler.mean_ = scaler.mean_[feature_index]
             feature_scaler.scale_ = scaler.scale_[feature_index]
+            print("feature_scaler", feature_scaler.mean_, feature_scaler.scale_)
 
             inversed_targets = feature_scaler.inverse_transform(test_targets.numpy().reshape(-1, 1))
             inversed_predictions = feature_scaler.inverse_transform(predictions.numpy().reshape(-1, 1))
@@ -301,7 +304,7 @@ with tab_pred:
 
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filepath= filename, model= "Transformer", scaling= True)
+        pred_data = create_Prediction(filepath= filename, model= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
