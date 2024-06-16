@@ -8,9 +8,12 @@ import logging
 import pandas as pd
 import numpy as np
 import torch
+import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from collections import namedtuple
+import streamlit as st
+import foo 
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,6 +24,7 @@ def check_file_exists(filepath: str):
     if not os.path.exists(filepath):
         logging.error(f"File {filepath} does not exist.")
         raise FileNotFoundError(f"File {filepath} does not exist.")
+
 
 def combine_files(file_paths):
     """
@@ -39,6 +43,7 @@ def combine_files(file_paths):
 
     return combined_df
 
+
 def save_to_parquet(df, filepath):
     """
     Save a DataFrame to a Parquet file.
@@ -48,7 +53,6 @@ def save_to_parquet(df, filepath):
         logging.info(f"Data saved to {filepath}")
     except Exception as e:
         logging.error(f"Failed to save data to {filepath}: {e}")
-
 
 
 def group_data(df: pd.DataFrame, freq: str="h") -> pd.DataFrame:
@@ -87,6 +91,7 @@ def cutoff_data(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFram
     df=deepcopy(df)
     return df[df["date_time"].between(start_date, end_date)]
 
+
 def build_lvl_df(df: pd.DataFrame, device_ids: list, output_cols: list, reset_ind: bool=True) -> pd.DataFrame:
     """
     args:   df: pd.DataFrame
@@ -99,25 +104,6 @@ def build_lvl_df(df: pd.DataFrame, device_ids: list, output_cols: list, reset_in
     df=deepcopy(df)
     return df[df["device_id"].isin(device_ids)][["date_time"]+output_cols].groupby("date_time").agg("mean").reset_index(drop=True) if reset_ind else df[df["device_id"].isin(device_ids)][["date_time"]+output_cols].groupby("date_time").agg("mean")
 
-def train_test_split(X: np.array, y: np.array, train_size: float= 0.985) -> np.array:
-    """
-    args:   
-        X: np.array: features
-        y: np.array: target
-        train_size: float: size of the training set
-    
-    returns:
-        X_train: np.array: training features
-        X_test: np.array: testing features
-        y_train: np.array: training target
-        y_test: np.array: testing target
-    """
-    split_index=int(len(X) * train_size)
-    X_train=torch.tensor(X[:split_index], dtype=torch.float32)
-    X_test=torch.tensor(X[split_index:], dtype=torch.float32)
-    y_train=torch.tensor(y[:split_index], dtype=torch.float32)
-    y_test=torch.tensor(y[split_index:], dtype=torch.float32)
-    return X_train, X_test, y_train, y_test
 
 def format_tensor(X: torch.tensor, window_size: int= 48) -> torch.tensor:
     """
@@ -128,6 +114,7 @@ def format_tensor(X: torch.tensor, window_size: int= 48) -> torch.tensor:
     """
     X_new = torch.stack([torch.cat((torch.zeros(window_size-i, X.shape[1]), X[:i])) if i < window_size else X[i-window_size:i] for i in range(0, len(X))])
     return X_new[1:]
+
 
 def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline: bool=False):
     """
@@ -211,7 +198,6 @@ def create_DataLoader(filepath: str="main/agg_hourly.parquet", window_size: int=
     train_data = update_Data(df_train, window_size, target, features)
     test_data = update_Data(df_test, window_size, target, features)
 
-    # Setup data loaders for batch
     train_dataset = TensorDataset(train_data.x, train_data.y)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=8, pin_memory=True)
 
@@ -222,3 +208,16 @@ def create_DataLoader(filepath: str="main/agg_hourly.parquet", window_size: int=
     test_data = test_data._replace(loader=test_loader, scaler=scaler)
 
     return {'train': train_data, 'test': test_data}
+
+
+# streamlit 
+
+@st.cache_data
+def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
+    filepath = os.path.join("./data/aggregated_data/", filename)
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+    df = pd.read_parquet(filepath)
+    return df
+

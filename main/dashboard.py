@@ -2,9 +2,7 @@ import streamlit as st, pandas as pd, pyvista as pv, dataprep as dp
 from stpyvista import stpyvista
 from datetime import date
 #from pyvista_test import plot_cube
-import os
-import logging
-logging.basicConfig(level=logging.INFO)
+from copy import deepcopy
 
 
 # Page config
@@ -14,27 +12,23 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-
-@st.cache_data 
-def load_data(filepath: str= "output.parquet"):
-    if not os.path.exists(filepath):
-        logging.error(f"File {filepath} does not exist.")
-        raise FileNotFoundError(f"File {filepath} does not exist.")
-    df = pd.read_parquet(filepath)
-    return df
-
 # Load data
-filename = "/Users/florian/Documents/github/study/IoT/IoT/main/agg_hourly.parquet"
-df = load_data(filename)
+FILENAME = "agg_hourly.parquet"
+data = dp.load_data(FILENAME)
+df = deepcopy(data)
 
 # Sidebar
 st.sidebar.header("Sensor Dashboard Building A")
-input_device = st.sidebar.selectbox(label= "Select Room", options= df["device_id"].unique().tolist(), index= 2)
+input_device = st.sidebar.selectbox(label= "Select Room", options= df["device_id"].unique().tolist() + ["all"], index= 2)
 input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10), min_value= df["date_time"].min(), max_value= df["date_time"].max())
 
 # Filter data
-df_device_dt = df[(df["device_id"].astype(str) == input_device) & (df["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date)))]
+a0 = ["a017", "a014"]
+a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
+FILENAME = "agg_hourly.parquet"
+OUTPUT_COLS = ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"]
 
+df_device_dt = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False) if input_device == "all" else df[(df["device_id"].astype(str) == input_device)]
 
 # Columns
 c1, c2 = st.columns(2)

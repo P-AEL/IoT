@@ -1,7 +1,4 @@
 import streamlit as st, dataprep as dp, pandas as pd
-import os
-import logging
-logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(
     layout="wide",
@@ -19,19 +16,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
-# Load data
-@st.cache_data 
-def load_data(filepath: str= "output.parquet"):
-    if not os.path.exists(filepath):
-        logging.error(f"File {filepath} does not exist.")
-        raise FileNotFoundError(f"File {filepath} does not exist.")
-    df = pd.read_parquet(filepath)
-    return df
-
-filename = "/Users/florian/Documents/github/study/IoT/IoT/main/agg_hourly.parquet"
-data = load_data(filename)
-
+FILENAME = "output.parquet"
+data = dp.load_data(FILENAME)
 
 #Sidebar
 st.sidebar.header("Monitoring Dashbaord for building A")
@@ -77,14 +63,14 @@ elif input_agg == 'w':
 elif input_agg == 'm':
     unique_months = df['month'].unique()
     month_labels = [f"{month.strftime('%m/%Y')}" for month in unique_months]
-    selected_label = st.sidebar.selectbox('Woche auswählen', month_labels)
+    selected_label = st.sidebar.selectbox('Monat auswählen', month_labels)
     selected_value = unique_months[month_labels.index(selected_label)]
     filtered_data = df[df['month'] == selected_value]
 
 elif input_agg == 'y':
     unique_years = df['year'].unique()
     year_labels = [pd.to_datetime(str(year), format='%Y').strftime('%Y') for year in unique_years]
-    selected_label = st.sidebar.selectbox('Monat auswählen', year_labels)
+    selected_label = st.sidebar.selectbox('Jahr auswählen', year_labels)
     selected_value = unique_years[year_labels.index(selected_label)]
     filtered_data = df[df['year'] == selected_value]
 

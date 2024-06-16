@@ -1,5 +1,6 @@
 import streamlit as st, dataprep as dp, pandas as pd, plotly.express as px
 from stoc import stoc
+from copy import deepcopy
 
 st.set_page_config(
     layout="wide",
@@ -9,13 +10,6 @@ st.set_page_config(
 # Initialize stoc for generating a table of contents
 toc = stoc()
 
-# Load data
-@st.cache_data 
-def load_data(filepath: str= "output.parquet"):
-    df = pd.read_parquet(filepath)
-    return df
-
-
 # Unique plot funciton for this page 
 def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
     fig = px.scatter(data, x= x, y= y, color= color)
@@ -23,13 +17,16 @@ def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="devic
 
 
 # Load data
-filepath = "/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet"
-data = load_data(filepath)
-df = dp.group_data(data, "h")
+FILENAME = "agg_hourly.parquet"
+data = dp.load_data(FILENAME)
+df = deepcopy(data)
 
 
-#--- Page content ---#
+# Sidebar
+st.sidebar.header("EDA for building A")
 
+
+# Page content
 toc.h1("Exploratory Data Analysis")
 
 toc.h2("Data Overview")
