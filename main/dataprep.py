@@ -152,7 +152,7 @@ def plt_fig(df: pd.DataFrame, y: str="tmp", mode: str="lines+markers", trendline
 DataLoaders = namedtuple('DataLoaders', ['train', 'test'])
 Data = namedtuple('Data', ['x', 'y', 'scaler', 'loader'])
 
-def to_sequences(obs: pd.DataFrame, window_size: int, target: str, features: list) -> Data:
+def update_Data(obs: pd.DataFrame, window_size: int, target: str, features: list) -> Data:
     """
     Convert a DataFrame into sequences of data.
     """
@@ -170,7 +170,7 @@ def to_sequences(obs: pd.DataFrame, window_size: int, target: str, features: lis
 
     return Data(x, y, None, None)
 
-def prepare_data(filename: str='main/aggregated_hourly.csv', window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
+def create_DataLoader(filename: str="main/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
     """
     Prepare data for training and testing.
     """
@@ -183,6 +183,7 @@ def prepare_data(filename: str='main/aggregated_hourly.csv', window_size: int=50
         df = pd.read_parquet(filename)
     else:
         print(f'Unsupported file type: {file_extension}')
+        
     df.date_time = pd.to_datetime(df.date_time)
     df = df[['device_id', 'date_time'] + features]
     timedelta = 3600
@@ -207,8 +208,8 @@ def prepare_data(filename: str='main/aggregated_hourly.csv', window_size: int=50
         df_train = df_train_scaled
         df_test = df_test_scaled
 
-    train_data = to_sequences(df_train, window_size, target, features)
-    test_data = to_sequences(df_test, window_size, target, features)
+    train_data = update_Data(df_train, window_size, target, features)
+    test_data = update_Data(df_test, window_size, target, features)
 
     # Setup data loaders for batch
     train_dataset = TensorDataset(train_data.x, train_data.y)

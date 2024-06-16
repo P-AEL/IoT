@@ -20,7 +20,7 @@ st.set_page_config(
 # Load data
 a0 = ["a017", "a014"]
 a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
-filename_data = "/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet"
+filename = "/Users/florian/Documents/github/study/IoT/IoT/main/output.parquet"
 
 
 @st.cache_data 
@@ -33,103 +33,144 @@ def load_data(filepath: str= "output.parquet") -> pd.DataFrame:
     return df
 
 
+
 @st.cache_data
-def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", start_date : str= "", end_date : str= "", features : list= ["tmp", "hum", "CO2", "VOC"], target : str= "tmp", train_size : float= 0.8, batch_size : int= 120, pred_model : str = "LSTM") -> list:
+def create_Prediction(filepath: str= filename, model: str= "LSTM", scaling: bool= True) -> list:
     """
-    args:  filename: str, rooms: list, agg: str, start_date: str, end_date: str, features: list, target: str, train_size: float, batch_size: int, pred_model: str
-    return: list
-    """ 
-    df = load_data(filename)
-    df_rooms = df[df["device_id"].isin(rooms)]
-    df = dp.group_data(df_rooms, agg)
-
-    df_cutoff = df.copy
-    df_cutoff = dp.cutoff_data(df, start_date, end_date)
-
-    df_mean = dp.build_lvl_df(df_cutoff, rooms, features, reset_ind= True)
+    """
+    data = dp.create_DataLoader(filename, window_size= 50, train_ratio= 0.8, batch_size= 64, features= ["tmp", "CO2", "hum", "VOC"], target= "tmp", scaling= scaling)
 
 
-    if pred_model == "LSTM":
+    if model == "LSTM":
+        
+        lstm = foo.LSTM(input_size= data["train"].x.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout= 0)
+        lstm.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/lstm_gut.pth"))
+        test_loader = data["test"].loader
+        test_features, test_targets = next(iter(test_loader))  
 
-        scaler = StandardScaler()
-        df_mean_scaled = deepcopy(df_mean)
-        df_mean_scaled["target"] = df_mean_scaled[f"{target}"].shift(-1)
-        df_mean_scaled = scaler.fit_transform(df_mean_scaled)
+        lstm.eval()
+        with torch.no_grad():
+            predictions = lstm(test_features)
 
-        X = df_mean_scaled[:, :-1]
-        y = df_mean_scaled[:, -1]
-
-        X_train, X_test, y_train, y_test = dp.train_test_split(X, y, train_size= train_size)
-
-        X_train_new, X_test_new = dp.format_tensor(X_train, 100), dp.format_tensor(X_test, 100)
-        X_train = X_train_new
-        X_test = X_test_new
-        y_train = y_train[:-1]
-        y_test = y_test[:-1]
-
-        #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
-        test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
-
-        model = foo.LSTM(input_size=X_train.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout=0, activation='relu')
-        model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/lstm.pth"))
-
-        model.eval()  # Set the model to evaluation mode
-
-        test_features, test_targets = next(iter(test_loader))  # Get a batch of train data
-        test_targets = test_targets.unsqueeze(1)  # Expand target to match the output shape
-
-        with torch.no_grad():  # Disable gradient computation
-            predictions = model(test_features)  # Make predictions
-
-        # Calculate the mean squared error of the predictions
         test_loss = nn.MSELoss()(predictions, test_targets)
 
-        feature_index = 0
-        # Erstellen Sie einen neuen `StandardScaler` für das entsprechende Feature
-        feature_scaler = StandardScaler()
-        feature_scaler.mean_ = scaler.mean_[feature_index]
-        feature_scaler.scale_ = scaler.scale_[feature_index]
+        if scaling:
+            feature_index = 0
+            scaler = data["test"].scaler
 
-        # Verwenden Sie den `feature_scaler` um die Vorhersagen zurück zu transformieren
-        inversed_predictions = feature_scaler.inverse_transform(predictions)
-        # Tun Sie dasselbe für die Ziele
-        inversed_targets = feature_scaler.inverse_transform(test_targets)
+            feature_scaler = StandardScaler()
+            feature_scaler.mean_ = scaler.mean_[feature_index]
+            feature_scaler.scale_ = scaler.scale_[feature_index]
 
-        output = [inversed_predictions, inversed_targets, test_loss]
+            inversed_targets = feature_scaler.inverse_transform(test_targets)
+            inversed_predictions = feature_scaler.inverse_transform(predictions)
 
-    elif pred_model == "Transformer":
+            output = [inversed_predictions, inversed_targets, test_loss]
 
-        X = df_mean.to_numpy()
-        y = df_mean["tmp"].shift(-1).to_numpy()
-        X_train, X_test, y_train, y_test = dp.train_test_split(X, y,train_size=0.8)
-        X_train_new, X_test_new = dp.format_tensor(X_train,window_size=100), dp.format_tensor(X_test,window_size=100)
-        y_train = y_train[:-1]
-        y_test = y_test[:-1]
+    elif model == "Transformer":
+        pass
 
-        X_train = X_train_new
-        X_test = X_test_new
+    
         
-        #train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
-        test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
+
+
+# @st.cache_data
+# def create_Prediction(filename : str= "", rooms : list= [], agg : str= "h", start_date : str= "", end_date : str= "", features : list= ["tmp", "hum", "CO2", "VOC"], target : str= "tmp", train_size : float= 0.8, batch_size : int= 120, pred_model : str = "LSTM") -> list:
+#     """
+#     args:  filename: str, rooms: list, agg: str, start_date: str, end_date: str, features: list, target: str, train_size: float, batch_size: int, pred_model: str
+#     return: list
+#     """ 
+#     df = load_data(filename)
+#     df_rooms = df[df["device_id"].isin(rooms)]
+#     df = dp.group_data(df_rooms, agg)
+
+#     df_cutoff = df.copy
+#     df_cutoff = dp.cutoff_data(df, start_date, end_date)
+
+#     df_mean = dp.build_lvl_df(df_cutoff, rooms, features, reset_ind= True)
+
+
+#     if pred_model == "LSTM":
+
+#         scaler = StandardScaler()
+#         df_mean_scaled = deepcopy(df_mean)
+#         df_mean_scaled["target"] = df_mean_scaled[f"{target}"].shift(-1)
+#         df_mean_scaled = scaler.fit_transform(df_mean_scaled)
+
+#         X = df_mean_scaled[:, :-1]
+#         y = df_mean_scaled[:, -1]
+
+#         X_train, X_test, y_train, y_test = dp.train_test_split(X, y, train_size= train_size)
+
+#         X_train_new, X_test_new = dp.format_tensor(X_train, 100), dp.format_tensor(X_test, 100)
+#         X_train = X_train_new
+#         X_test = X_test_new
+#         y_train = y_train[:-1]
+#         y_test = y_test[:-1]
+
+#         train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
+#         test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
+
+#         model = foo.LSTM(input_size=X_train.shape[2], hidden_size=100, num_layers=1, output_size=1, dropout=0, activation='relu')
+#         model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/lstm.pth"))
+
+#         model.eval()  # Set the model to evaluation mode
+
+#         test_features, test_targets = next(iter(test_loader))  # Get a batch of train data
+#         test_targets = test_targets.unsqueeze(1)  # Expand target to match the output shape
+
+#         with torch.no_grad():  # Disable gradient computation
+#             predictions = model(test_features)  # Make predictions
+
+#         Calculate the mean squared error of the predictions
+#         test_loss = nn.MSELoss()(predictions, test_targets)
+
+#         feature_index = 0
+#         Erstellen Sie einen neuen `StandardScaler` für das entsprechende Feature
+#         feature_scaler = StandardScaler()
+#         feature_scaler.mean_ = scaler.mean_[feature_index]
+#         feature_scaler.scale_ = scaler.scale_[feature_index]
+
+#         Verwenden Sie den `feature_scaler` um die Vorhersagen zurück zu transformieren
+#         inversed_predictions = feature_scaler.inverse_transform(predictions)
+#         Tun Sie dasselbe für die Ziele
+#         inversed_targets = feature_scaler.inverse_transform(test_targets)
+
+#         output = [inversed_predictions, inversed_targets, test_loss]
+
+#     elif pred_model == "Transformer":
+
+#         X = df_mean.to_numpy()
+#         y = df_mean["tmp"].shift(-1).to_numpy()
+#         X_train, X_test, y_train, y_test = dp.train_test_split(X, y,train_size=0.8)
+#         X_train_new, X_test_new = dp.format_tensor(X_train,window_size=100), dp.format_tensor(X_test,window_size=100)
+#         y_train = y_train[:-1]
+#         y_test = y_test[:-1]
+
+#         X_train = X_train_new
+#         X_test = X_test_new
         
-        model = foo.Decoder(4, 128, 100, 4, 256, device="cpu")
-        model.to("cpu")
-        model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/Decoder_besser.pth", map_location="cpu"))
+#         train_loader = DataLoader(TensorDataset(X_train, y_train), shuffle=False, batch_size=batch_size) 
+#         test_loader = DataLoader(TensorDataset(X_test, y_test), shuffle=False, batch_size=batch_size)
+        
+#         model = foo.Decoder(4, 128, 100, 4, 256, device="cpu")
+#         model.to("cpu")
+#         model.load_state_dict(torch.load("/Users/florian/Documents/github/study/IoT/IoT/main/Decoder_besser.pth", map_location="cpu"))
 
-        model.eval()
+#         model.eval()
 
-        test_features, test_targets = next(iter(test_loader))  # Get a batch of train data
-        test_targets = test_targets.unsqueeze(1)  # Expand target to match the output shape
+#         test_features, test_targets = next(iter(test_loader))  # Get a batch of train data
+#         test_targets = test_targets.unsqueeze(1)  # Expand target to match the output shape
 
-        with torch.no_grad():  # Disable gradient computation
-            predictions = model(test_features)  # Make predictions
+#         with torch.no_grad():  # Disable gradient computation
+#             predictions = model(test_features)  # Make predictions
 
-        # Calculate the mean squared error of the predictions
-        test_loss = nn.MSELoss()(predictions, test_targets)
+#         Calculate the mean squared error of the predictions
+#         test_loss = nn.MSELoss()(predictions, test_targets)
 
-        output = [predictions, test_targets, test_loss]
+#         output = [predictions, test_targets, test_loss]
    
-    return output
+#     return output
 
 
 def create_ensemble(model_predictions, targets):
@@ -152,7 +193,7 @@ def create_ensemble(model_predictions, targets):
 
 
 
-data = load_data(filename_data)
+data = load_data(filename)
 df_hour = dp.group_data(data, "h")
 
 # Sidebar
@@ -204,7 +245,7 @@ with tab_pred:
     pred_end_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= df_hour["date_time"].min(), max_value= df_hour["date_time"].max())
 
     if input_pred_model == "LSTM":
-        pred_data = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
+        pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         loss = pred_data[2]
@@ -224,7 +265,7 @@ with tab_pred:
 
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
+        pred_data = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
@@ -246,8 +287,8 @@ with tab_pred:
 
     elif input_pred_model == "Ensemble":    
         
-        pred_data_lstm = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
-        pred_data_trsnf = create_Prediction(filename=filename_data, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
+        pred_data_lstm = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "LSTM")
+        pred_data_trsnf = create_Prediction(filename=filename, rooms= a1, agg= "h", start_date= str(pred_start_date), end_date= str(pred_end_date), features= ["tmp", "hum", "CO2", "VOC"], target= "tmp", train_size= 0.8, batch_size= 120, pred_model= "Transformer")
         predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
         predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
 
