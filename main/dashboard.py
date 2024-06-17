@@ -1,7 +1,7 @@
 import streamlit as st, pandas as pd, pyvista as pv, dataprep as dp
 from stpyvista import stpyvista
 from datetime import date
-#from pyvista_test import plot_cube
+from pyvista_test import plot_cube
 from copy import deepcopy
 
 
@@ -43,12 +43,17 @@ c1, c2 = st.columns(2)
 
 with c1:
 
-    st.markdown("## Pauls Tolle Graphik")
-    # plotter = plot_cube()
-    # plotter.view_isometric()
-    # plotter.add_scalar_bar()
-    # plotter.background_color = "black"
-    # stpyvista(plotter)
+    st.markdown("## Building A")
+    plotter = plot_cube(input_device)
+    plotter.view_isometric()
+    plotter.add_scalar_bar()
+    plotter.background_color = "black"
+    # Set the camera position
+    plotter.camera_position = ((2.5, 2.5, 2.5), (0.3, 0.5, -0.5), (0, 0, 1))
+
+    stpyvista(plotter)
+    if input_device == "a014":
+        st.write("We didnt find room 014, it possible doesn't exist anymore.")
 
 with c2:
 

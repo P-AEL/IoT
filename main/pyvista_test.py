@@ -133,6 +133,14 @@ Raume = {"a017": {"x1017":[0.85,0,0],
                 "x2017out":[0.85,0.25,0.1],
                 "x3017out":[1,0.25,0.1],
                 "x4017out":[1,0,0.1]},
+        "a014": {"x1017":[0,0,0],
+                "x2017":[0,0,0],
+                "x3017":[0,0,0],
+                "x4017":[0,0,0],
+                "x1017out":[0,0,0],
+                "x2017out":[0,0,0],
+                "x3017out":[0,0,0],
+                "x4017out":[0,0,0]},
         "a103": {"x1103":[-0.1,-0.17,0.1],
                 "x2103":[-0.1,0.23,0.1],
                 "x3103":[0.4,0.23,0.1],
@@ -181,22 +189,22 @@ Raume = {"a017": {"x1017":[0.85,0,0],
                 "x2108out":[1.0,0.23,0.2],
                 "x3108out":[1.0,0.355,0.2],
                 "x4108out":[1.1,0.355,0.2]},
-        "Raum_109": {"x1109":[1.1,0.355,0.1],
-                "x2109":[1.0,0.355,0.1],
-                "x3109":[1.0,0.48,0.1],
-                "x4109":[1.1,0.48,0.1],
-                "x1109out":[1.1,0.355,0.2],
-                "x2109out":[1.0,0.355,0.2],
-                "x3109out":[1.0,0.48,0.2],
-                "x4109out":[1.1,0.48,0.2]},
-        "Raum_110": {"x1110":[1.1,0.48,0.1],
-                "x2110":[1.0,0.48,0.1],
-                "x3110":[1.0,0.605,0.1],
-                "x4110":[1.1,0.605,0.1],
-                "x1110out":[1.1,0.48,0.2],
-                "x2110out":[1.0,0.48,0.2],
-                "x3110out":[1.0,0.605,0.2],
-                "x4110out":[1.1,0.605,0.2]},
+        # "Raum_109": {"x1109":[1.1,0.355,0.1],
+        #         "x2109":[1.0,0.355,0.1],
+        #         "x3109":[1.0,0.48,0.1],
+        #         "x4109":[1.1,0.48,0.1],
+        #         "x1109out":[1.1,0.355,0.2],
+        #         "x2109out":[1.0,0.355,0.2],
+        #         "x3109out":[1.0,0.48,0.2],
+        #         "x4109out":[1.1,0.48,0.2]},
+        # "Raum_110": {"x1110":[1.1,0.48,0.1],
+        #         "x2110":[1.0,0.48,0.1],
+        #         "x3110":[1.0,0.605,0.1],
+        #         "x4110":[1.1,0.605,0.1],
+        #         "x1110out":[1.1,0.48,0.2],
+        #         "x2110out":[1.0,0.48,0.2],
+        #         "x3110out":[1.0,0.605,0.2],
+        #         "x4110out":[1.1,0.605,0.2]},
         "a111": {"x1111":[1.1,0.605,0.1],
                     "x2111":[1.0,0.605,0.1],
                     "x3111":[1.0,0.83,0.1],
@@ -226,27 +234,19 @@ points_Og_mesh= np.array([points_Og[key] for key in points_Og])
 cells_Og = np.array([[2, list(points_Og.keys()).index(key.split("_")[0]), list(points_Og.keys()).index(key.split("_")[1])] for key in Connecting_Og])
 mesh_Og = pv.PolyData(points_Og_mesh,lines=cells_Og)
 
-# points_017 = np.array([Raum_017[key] for key in Raum_017])
-# cells_017 = np.array([[2, list(Raum_017.keys()).index(key.split("_")[0]), list(Raum_017.keys()).index(key.split("_")[1])] for key in Connecting_017])
-# mesh_017 = pv.PolyData(points_017,lines=cells_017)
-# points_017 = np.array([Raum_017[key] for key in Raum_017])
-# xMin, xMax, yMin, yMax, zMin, zMax = np.min(points_017[:,0]), np.max(points_017[:,0]), np.min(points_017[:,1]), np.max(points_017[:,1]), np.min(points_017[:,2]), np.max(points_017[:,2])
-# point_017 = [xMin,xMax,yMin,yMax,zMin,zMax]
-# mesh_017 = pv.Box(point_017)
-
-
-
-# Erstellen Sie den Plotter und fügen Sie das Mesh hinzu
-# plotter = pv.Plotter()
-# plotter.add_mesh(mesh, show_edges= True, line_width= 5)
-# plotter.add_mesh(mesh_017, show_edges= True, color= "red",opacity= 0.5)
-# plotter.add_mesh(mesh_Og, show_edges= True, line_width= 5)
-
-
-# # Zeigen Sie das Ergebnis an
-# plotter.show()
 
 def plot_cube(Raum):
+    if Raum == "all":
+        plotter = pv.Plotter()
+        plotter.add_mesh(mesh, show_edges= True, line_width= 5)
+        plotter.add_mesh(mesh_Og, show_edges= True, line_width= 5)
+        for Raum in Raume:
+                points_raum = np.array([Raume[Raum][key] for key in Raume[Raum]])
+                xMin, xMax, yMin, yMax, zMin, zMax = np.min(points_raum[:,0]), np.max(points_raum[:,0]), np.min(points_raum[:,1]), np.max(points_raum[:,1]), np.min(points_raum[:,2]), np.max(points_raum[:,2])
+                point_raum = [xMin,xMax,yMin,yMax,zMin,zMax]
+                mesh_raum = pv.Box(point_raum)
+                plotter.add_mesh(mesh_raum, show_edges= True, color= "red",opacity= 0.5)
+        return plotter
     points_raum = np.array([Raume[Raum][key] for key in Raume[Raum]])
     xMin, xMax, yMin, yMax, zMin, zMax = np.min(points_raum[:,0]), np.max(points_raum[:,0]), np.min(points_raum[:,1]), np.max(points_raum[:,1]), np.min(points_raum[:,2]), np.max(points_raum[:,2])
     point_raum = [xMin,xMax,yMin,yMax,zMin,zMax]
