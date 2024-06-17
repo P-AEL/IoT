@@ -39,7 +39,7 @@ agg_dict = {
     'y': ('m', 'Select year', '%Y')
 }
 
-# cacheable
+# Page content
 df = dp.group_data(data, agg_dict[input_agg][0])
 df["min"] = df["date_time"].dt.minute
 df["hour"] = df["date_time"].dt.hour
