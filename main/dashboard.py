@@ -28,9 +28,17 @@ a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
 FILENAME = "agg_hourly.parquet"
 OUTPUT_COLS = ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"]
 
-df_device_dt = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False) if input_device == "all" else df[(df["device_id"].astype(str) == input_device)]
 
-# Columns
+if input_device == "all":
+    df_temp = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False)
+    mask = df_temp["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date))
+    df_device_dt = df_temp[mask]
+else:
+    mask = (df["device_id"].astype(str) == input_device) & (df["date_time"].astype(str).str.slice(0, 10).str.contains(str(input_date)))
+    df_device_dt = df[mask]
+
+
+# Page content
 c1, c2 = st.columns(2)
 
 with c1:
