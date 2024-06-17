@@ -38,6 +38,7 @@ agg_dict = {
     'm': ('w', 'Select month', '%m/%Y'),
     'y': ('m', 'Select year', '%Y')
 }
+
 # cacheable
 df = dp.group_data(data, agg_dict[input_agg][0])
 df["min"] = df["date_time"].dt.minute

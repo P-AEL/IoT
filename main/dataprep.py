@@ -92,6 +92,7 @@ def cutoff_data(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFram
     return df[df["date_time"].between(start_date, end_date)]
 
 
+@st.cache_data
 def build_lvl_df(df: pd.DataFrame, device_ids: list, output_cols: list, reset_ind: bool=True) -> pd.DataFrame:
     """
     args:   df: pd.DataFrame
