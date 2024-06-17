@@ -23,6 +23,8 @@ points_Eg= {"x1":[0,0,0],
             "x8out":[1.025,0.25,0.1],
             "x9out":[1,0.25,0.1],
             "x10out":[1,0,0.1]}
+
+
 Connecting_Eg= {"x1_x2":[points_Eg["x1"],points_Eg["x2"]],
                 "x2_x3":[points_Eg["x2"],points_Eg["x3"]],
                 "x3_x4":[points_Eg["x3"],points_Eg["x4"]],
@@ -54,6 +56,7 @@ Connecting_Eg= {"x1_x2":[points_Eg["x1"],points_Eg["x2"]],
                 "x9out_x10out":[points_Eg["x9out"],points_Eg["x10out"]],
                 "x10out_x1out":[points_Eg["x10out"],points_Eg["x1out"]]}
 
+
 points_Og= {"x1":[-0.1,-0.17,0.1],
             "x2":[-0.1,0.23,0.1],
             "x3":[-0.05,0.23,0.1],
@@ -82,6 +85,8 @@ points_Og= {"x1":[-0.1,-0.17,0.1],
             "x12out":[1.05,-0.05,0.2],
             "x13out":[0.4,-0.05,0.2],
             "x14out":[0.4,-0.17,0.2]}
+
+
 Connecting_Og= {"x1_x2":[points_Og["x1"],points_Og["x2"]],
                 "x2_x3":[points_Og["x2"],points_Og["x3"]],
                 "x3_x4":[points_Og["x3"],points_Og["x4"]],
@@ -224,10 +229,8 @@ Raume = {"a017": {"x1017":[0.85,0,0],
                 }    
 
 
-# Erstellen Sie ein Array von Punkten aus Ihrem Dictionary
 points = np.array([points_Eg[key] for key in points_Eg])
 cells = np.array([[2, list(points_Eg.keys()).index(key.split("_")[0]), list(points_Eg.keys()).index(key.split("_")[1])] for key in Connecting_Eg])
-# Erstellen Sie das PolyData-Objekt
 mesh = pv.PolyData(points,lines=cells)
 
 points_Og_mesh= np.array([points_Og[key] for key in points_Og])
