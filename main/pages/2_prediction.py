@@ -131,7 +131,7 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
 
         targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
         predictions = feature_scaler.inverse_transform(horizon_dict[horizon_step-1].to("cpu").numpy().reshape(-1, 1))
-        test_loss = nn.MSELoss()(torch.from_numpy(predictions), torch.from_numpy(targets))
+        test_loss = nn.MSELoss()(torch.from_numpy(predictions[:-horizon_step]), torch.from_numpy(targets[:-horizon_step]))
         print("test_loss2", test_loss)
     output = [predictions, targets, test_loss]
     #print(predictions)
