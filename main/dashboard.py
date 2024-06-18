@@ -44,16 +44,16 @@ c1, c2 = st.columns(2)
 with c1:
 
     st.markdown("## Building A")
-    plotter = plot_cube(input_device)
-    plotter.view_isometric()
-    plotter.add_scalar_bar()
-    plotter.background_color = "black"
-    # Set the camera position
-    plotter.camera_position = ((2.5, 2.5, 2.5), (0.3, 0.5, -0.5), (0, 0, 1))
+    # plotter = plot_cube(input_device)
+    # plotter.view_isometric()
+    # plotter.add_scalar_bar()
+    # plotter.background_color = "black"
+    # # Set the camera position
+    # plotter.camera_position = ((2.5, 2.5, 2.5), (0.3, 0.5, -0.5), (0, 0, 1))
 
-    stpyvista(plotter)
-    if input_device == "a014":
-        st.write("We didnt find room 014, it possible doesn't exist anymore.")
+    # stpyvista(plotter)
+    # if input_device == "a014":
+    #     st.write("We didnt find room 014, it possible doesn't exist anymore.")
 
 with c2:
 
