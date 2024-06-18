@@ -3,7 +3,7 @@ import torch
 import foo
 import logging
 import os
-from datetime import date
+from datetime import datetime, date, time
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 from copy import deepcopy
@@ -58,7 +58,7 @@ def load_model(model_name: str, device: torch.device):
     return model
 
 @st.cache_data
-def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "", device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"],horizon_step=2) -> list:
+def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 2) -> list:
     """
     Create a prediction from a pre-trained model for a given time range.
 
@@ -74,7 +74,14 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
     """
     data = load_data(filename= filepath)
     df = deepcopy(data)
-    df = df[df["date_time"].between(str(start_date), str(end_date))]
+
+    start_date = pd.to_datetime(start_date)
+    df = df[df["date_time"].between(start_date, start_date + pd.Timedelta(hours= 64))]
+    if df.empty:
+        logging.error("Keine Daten für den angegebenen Zeitraum gefunden.")
+        raise ValueError("Keine Daten für den angegebenen Zeitraum gefunden.")
+        
+
     df = dp.build_lvl_df(df, device_ids= device_ids, output_cols= features, reset_ind= True)
     df["target"] = df[f"{target}"].shift(-1)
 
@@ -89,34 +96,35 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
     test_features, test_targets = next(iter(data_loader))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    horizon_dict = {}
     model = load_model(model_name, device)
-    #horizon = (end_date - start_date).days
     model.to(device)
+    model.eval()
+    
+    horizon_dict = {}
     for i in range(horizon_step):
         with torch.no_grad():
             test_features_new = test_features[:,i:,:].to(device)
             test_features_new2 = test_features
             if i > 0:
                 for idx,test_feature in enumerate(test_features_new):
-                    print("horizon_dict[i-1][idx]", horizon_dict[i-1][idx])
-                    print("horizon_dict[i-1].shape", test_feature[-1].shape)
-                    print("test_feature[-1][1:]", test_feature[-1][1:])
+                    # print("horizon_dict[i-1][idx]", horizon_dict[i-1][idx])
+                    # print("horizon_dict[i-1].shape", test_feature[-1].shape)
+                    # print("test_feature[-1][1:]", test_feature[-1][1:])
                     if horizon_dict[i-1][idx].dim() == 0:
                         test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx].unsqueeze(0), test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
                     else:
                         test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx], test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
             test_targets = test_targets[i:].to(device)
             if i > 0:
-                print("test_targets", test_targets.shape)
+                # print("test_targets", test_targets.shape)
                 zeros = torch.zeros(i, test_targets.shape[1]).to(device)
                 test_targets = torch.cat((test_targets, zeros), dim=0)
-            print("test_features", test_features_new.shape)
+            # print("test_features", test_features_new.shape)
             test_features_new2 = test_features_new2.to(device)
             predictions = model(test_features_new2)
             horizon_dict[i] = predictions
 
-    test_loss = nn.MSELoss()(horizon_dict[0], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[1], test_targets) 
+    test_loss = nn.MSELoss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
 
     if scaling:
         feature_index = 0
@@ -128,6 +136,7 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
         predictions = feature_scaler.inverse_transform(horizon_dict[0].to("cpu").numpy().reshape(-1, 1))
 
     output = [predictions, targets, test_loss]
+    #print(predictions)
 
     return output
 
@@ -206,36 +215,41 @@ with tab_trend:
 with tab_pred:
 
     input_pred_model = st.selectbox(label= "Select Model", options= ["LSTM", "Transformer", "Ensemble"], index= 0)
-    pred_start_date = st.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= data["date_time"].min(), max_value= data["date_time"].max())
-    pred_end_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= data["date_time"].min(), max_value= data["date_time"].max())
+    #input_pred_start_date = st.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= data["date_time"].min(), max_value= data["date_time"].max())
+    #input_pred_start_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= data["date_time"].min(), max_value= data["date_time"].max())
+    input_pred_start_date = st.date_input(label= "Select Start Date", value= date(2023,9,4), min_value= data["date_time"].min().date(), max_value= data["date_time"].max().date())
+    input_pred_start_time = st.time_input(label= "Select Start Time", value= time(0, 0))
+    input_pred_start_datetime = datetime.combine(input_pred_start_date, input_pred_start_time)
+    input_pred_step_size = st.number_input(label= "Select Horizon Step", value= 2, min_value= 1, max_value= 4)
 
     if input_pred_model == "LSTM":
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         loss = pred_data[2]
 
-        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        #x = pd.date_range(start= input_pred_start_date, end= pred_end_date)
+        x = pd.date_range(start= input_pred_start_datetime, end= input_pred_start_datetime + pd.Timedelta(hours= 64), freq= "H")
         plot_predictions(x, inversed_targets, inversed_predicitons, loss)
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
 
-        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        x = pd.date_range(start= input_pred_start_date, end= input_pred_start_datetime + pd.Timedelta(hours= 64), freq= "H")
         plot_predictions(x, targets, predictions, loss)
 
     elif input_pred_model == "Ensemble":    
-        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
-        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
+        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
         predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
         predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
         ensemble = create_ensemble([predictions_lstm, predictions_trsnf], targets_lstm)
         ensemble_vec, ensemble_loss = ensemble[0], ensemble[1]
 
-        x = pd.date_range(start= pred_start_date, end= pred_end_date)
+        x = pd.date_range(start= input_pred_start_datetime, end= input_pred_start_datetime + pd.Timedelta(hours= 64), freq= "H")
         plot_predictions(x, targets_lstm, ensemble_vec, ensemble_loss)
 
 
