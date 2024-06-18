@@ -57,7 +57,7 @@ def load_model(model_name: str, device: torch.device):
     return model
 
 @st.cache_data
-def create_Prediction(filepath: str= "agg_hourly.parquet", model: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "", device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]) -> list:
+def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "", device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]) -> list:
     """
     Create a prediction from a pre-trained model for a given time range.
 
@@ -89,11 +89,13 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model: str= "LSTM", s
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    model = load_model(model, device)
+    model = load_model(model_name, device)
     with torch.no_grad():
+        test_features = test_features.to(device)
+        test_targets = test_targets.to(device)
         predictions = model(test_features)
 
-    test_loss = nn.MSELoss()(predictions, test_targets.squeeze(-1)) if model == "Transformer" else nn.MSELoss()(predictions, test_targets) 
+    test_loss = nn.MSELoss()(predictions, test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(predictions, test_targets) 
 
     if scaling:
         feature_index = 0
@@ -101,8 +103,8 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model: str= "LSTM", s
         feature_scaler.mean_ = scaler.mean_[feature_index]
         feature_scaler.scale_ = scaler.scale_[feature_index]
 
-        targets = feature_scaler.inverse_transform(test_targets.to(device).numpy().reshape(-1, 1))
-        predictions = feature_scaler.inverse_transform(predictions.to(device).numpy().reshape(-1, 1))
+        targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
+        predictions = feature_scaler.inverse_transform(predictions.to("cpu").numpy().reshape(-1, 1))
 
     output = [predictions, targets, test_loss]
 
@@ -187,7 +189,7 @@ with tab_pred:
     pred_end_date = st.date_input(label= "Select End Date", value= date(2023,10,1), min_value= data["date_time"].min(), max_value= data["date_time"].max())
 
     if input_pred_model == "LSTM":
-        pred_data = create_Prediction(filepath= FILENAME, model= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         loss = pred_data[2]
@@ -196,7 +198,7 @@ with tab_pred:
         plot_predictions(x, inversed_targets, inversed_predicitons, loss)
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filepath= FILENAME, model= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
@@ -205,8 +207,8 @@ with tab_pred:
         plot_predictions(x, targets, predictions, loss)
 
     elif input_pred_model == "Ensemble":    
-        pred_data_lstm = create_Prediction(filepath= FILENAME, model= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
-        pred_data_trsnf = create_Prediction(filepath= FILENAME, model= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
+        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= pred_start_date, end_date= pred_end_date)
         predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
         predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
         ensemble = create_ensemble([predictions_lstm, predictions_trsnf], targets_lstm)

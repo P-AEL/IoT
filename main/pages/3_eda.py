@@ -11,10 +11,9 @@ st.set_page_config(
 toc = stoc()
 
 # Unique plot funciton for this page 
-def plt(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
+def plt_data(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
     fig = px.scatter(data, x= x, y= y, color= color)
     return fig
-
 
 # Load data
 FILENAME = "agg_hourly.parquet"
@@ -33,9 +32,8 @@ toc.h2("Data Overview")
 
 toc.h3("Gaps in the data")
 st.write(f"We currently have {df.shape[0]} rows and {df.shape[1]} columns in our dataset. In general we should have data from {df.date_time.min().date()} to {df.date_time.max().date()}, which is , as you can see in the following plot, not the case.")
-st.plotly_chart(plt(df, x= "date_time", y= "tmp", color= "device_id"), use_container_width= True)
+st.plotly_chart(plt_data(df, x= "date_time", y= "tmp", color= "device_id"), use_container_width= True)
 st.write(f"These gaps in the data are due to the fact that some devices in some rooms either could not uphold a stable connection to the endpoint or were turned off. The gaps are generally big but tend to differ in size and quantity per device. In the following table we can see the relative number of missing days per device and year.")
-
 
 df["n_of_days"] = 0
 for i in df.device_id.unique():
@@ -56,7 +54,6 @@ for i in df.year.unique():
     else:
         df_daysmissing.loc[df_daysmissing.year == i, "missing_days"] = (df_daysmissing.total_days_2023 - df_daysmissing.date)/df_daysmissing.total_days_2023
 
-
 col_table, col_plt = st.columns(2)
 
 with col_table:
@@ -64,14 +61,11 @@ with col_table:
 with col_plt:
     st.plotly_chart(px.sunburst(df_daysmissing, path= ["year", "device_id"], values= "missing_days"))
 
-
 device_ids = df.groupby('device_id')['year'].nunique()
 device_ids = device_ids[device_ids == 1].index.tolist()
 
-
 grouped_df = df.groupby(['device_id', 'date']).size().reset_index(name='hours_per_day')
 average_hours_per_day = grouped_df.groupby('device_id')[['hours_per_day']].mean()
-
 st.write(f"The devices {device_ids} have only been actively collecting data for one year")
 
 st.plotly_chart(px.bar(average_hours_per_day, x=average_hours_per_day.index, y='hours_per_day'), use_container_width= True)
@@ -83,7 +77,6 @@ st.write("Datapoints with funny tmp and hum values")
 col_desc, col_tmp40 = st.columns(2)
 with col_desc:
     st.write(df.describe().iloc[:,:-14])
-
 with col_tmp40:
     st.write(df.loc[df["tmp"]>40][["device_id", "date_time", "tmp", "hum"]])
 
