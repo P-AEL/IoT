@@ -77,8 +77,8 @@ with c2:
                     st.metric(name, value)
 
     if df_device_dt.empty:
-        with st.expander("See explanation"):
-            st.write(f"No data available for the selected room {input_device} and room {input_date}. To see what data is available, look 'Gaps in the data'.")         
+        with st.expander("ERROR: See explanation"):
+            st.write(f"No data available for the selected room {input_device} and date {input_date}. To see what data is available, see 'prediction/Tmp gaps'.")         
 
     
     tabs = st.tabs(["Temperature", "Humidity", "CO2", "VOC", "Wifi", "rssi"])
