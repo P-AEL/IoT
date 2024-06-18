@@ -42,6 +42,7 @@ def load_model(model_name: str, device: torch.device):
             device: torch.device
     returns:    torch.nn.Module
     """
+    print("device", device)
     filename = f"{model_name}.pth"
     filepath = os.path.join("./main/models/", filename)
     try:
@@ -57,7 +58,7 @@ def load_model(model_name: str, device: torch.device):
     return model
 
 @st.cache_data
-def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "", device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]) -> list:
+def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], start_date: str= "", end_date: str= "", device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"],horizon_step=2) -> list:
     """
     Create a prediction from a pre-trained model for a given time range.
 
@@ -88,14 +89,34 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
     test_features, test_targets = next(iter(data_loader))
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+    horizon_dict = {}
     model = load_model(model_name, device)
-    with torch.no_grad():
-        test_features = test_features.to(device)
-        test_targets = test_targets.to(device)
-        predictions = model(test_features)
+    #horizon = (end_date - start_date).days
+    model.to(device)
+    for i in range(horizon_step):
+        with torch.no_grad():
+            test_features_new = test_features[:,i:,:].to(device)
+            test_features_new2 = test_features
+            if i > 0:
+                for idx,test_feature in enumerate(test_features_new):
+                    print("horizon_dict[i-1][idx]", horizon_dict[i-1][idx])
+                    print("horizon_dict[i-1].shape", test_feature[-1].shape)
+                    print("test_feature[-1][1:]", test_feature[-1][1:])
+                    if horizon_dict[i-1][idx].dim() == 0:
+                        test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx].unsqueeze(0), test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
+                    else:
+                        test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx], test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
+            test_targets = test_targets[i:].to(device)
+            if i > 0:
+                print("test_targets", test_targets.shape)
+                zeros = torch.zeros(i, test_targets.shape[1]).to(device)
+                test_targets = torch.cat((test_targets, zeros), dim=0)
+            print("test_features", test_features_new.shape)
+            test_features_new2 = test_features_new2.to(device)
+            predictions = model(test_features_new2)
+            horizon_dict[i] = predictions
 
-    test_loss = nn.MSELoss()(predictions, test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(predictions, test_targets) 
+    test_loss = nn.MSELoss()(horizon_dict[0], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[1], test_targets) 
 
     if scaling:
         feature_index = 0
@@ -104,7 +125,7 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
         feature_scaler.scale_ = scaler.scale_[feature_index]
 
         targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
-        predictions = feature_scaler.inverse_transform(predictions.to("cpu").numpy().reshape(-1, 1))
+        predictions = feature_scaler.inverse_transform(horizon_dict[0].to("cpu").numpy().reshape(-1, 1))
 
     output = [predictions, targets, test_loss]
 
