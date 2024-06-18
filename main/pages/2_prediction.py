@@ -103,29 +103,26 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
     horizon_dict = {}
     for i in range(horizon_step):
         with torch.no_grad():
-            test_features_new = test_features[:,i:,:].to(device)
+            if i > 0:
+                test_features_new = test_features[:,1:,:].to(device)
             test_features_new2 = test_features
             if i > 0:
                 for idx,test_feature in enumerate(test_features_new):
-                    # print("horizon_dict[i-1][idx]", horizon_dict[i-1][idx])
-                    # print("horizon_dict[i-1].shape", test_feature[-1].shape)
-                    # print("test_feature[-1][1:]", test_feature[-1][1:])
                     if horizon_dict[i-1][idx].dim() == 0:
                         test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx].unsqueeze(0), test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
                     else:
                         test_features_new2[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx], test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
             test_targets = test_targets[i:].to(device)
             if i > 0:
-                # print("test_targets", test_targets.shape)
                 zeros = torch.zeros(i, test_targets.shape[1]).to(device)
                 test_targets = torch.cat((test_targets, zeros), dim=0)
-            # print("test_features", test_features_new.shape)
+            test_features = test_features_new2
             test_features_new2 = test_features_new2.to(device)
             predictions = model(test_features_new2)
             horizon_dict[i] = predictions
 
     test_loss = nn.MSELoss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
-
+    print("test_loss", test_loss)
     if scaling:
         feature_index = 0
         feature_scaler = StandardScaler()
@@ -133,8 +130,9 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
         feature_scaler.scale_ = scaler.scale_[feature_index]
 
         targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
-        predictions = feature_scaler.inverse_transform(horizon_dict[0].to("cpu").numpy().reshape(-1, 1))
-
+        predictions = feature_scaler.inverse_transform(horizon_dict[horizon_step-1].to("cpu").numpy().reshape(-1, 1))
+        test_loss = nn.MSELoss()(torch.from_numpy(predictions), torch.from_numpy(targets))
+        print("test_loss2", test_loss)
     output = [predictions, targets, test_loss]
     #print(predictions)
 
