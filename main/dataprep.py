@@ -1,6 +1,5 @@
 import pandas as pd, numpy as np, plotly.graph_objects as go, plotly.express as px
 from copy import deepcopy
-from scipy import stats
 import torch
 import torch.utils
 import os
@@ -13,9 +12,9 @@ from torch.utils.data import TensorDataset, DataLoader
 from sklearn.preprocessing import StandardScaler
 from collections import namedtuple
 import streamlit as st
-import foo 
-
 logging.basicConfig(level=logging.INFO)
+
+
 
 def check_file_exists(filepath: str):
     """
@@ -158,7 +157,7 @@ def update_Data(obs: pd.DataFrame, window_size: int, target: str, features: list
 
     return Data(x, y, None, None)
 
-def create_DataLoader(filepath: str="main/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
+def create_DataLoader(filepath: str="data/aggregated_data/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
     """
     Prepare data for training and testing.
     """
@@ -211,8 +210,7 @@ def create_DataLoader(filepath: str="main/agg_hourly.parquet", window_size: int=
     return {'train': train_data, 'test': test_data}
 
 
-# streamlit 
-
+# streamlit functions
 @st.cache_data
 def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
     filepath = os.path.join("./data/aggregated_data/", filename)

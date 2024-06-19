@@ -30,7 +30,9 @@ def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
     if not os.path.exists(filepath):
         logging.error(f"File {filepath} does not exist.")
         raise FileNotFoundError(f"File {filepath} does not exist.")
+    
     df = pd.read_parquet(filepath)
+    
     return df
 
 @st.cache_resource
@@ -42,23 +44,56 @@ def load_model(model_name: str, device: torch.device):
             device: torch.device
     returns:    torch.nn.Module
     """
-    print("device", device)
     filename = f"{model_name}.pth"
     filepath = os.path.join("./main/models/", filename)
+
     try:
+
         if model_name == "LSTM":
             model = foo.LSTM(input_size= 4, hidden_size= 100, num_layers= 1, output_size= 1, dropout= 0)
+
         elif model_name == "Transformer":
             model = foo.Decoder(input= 4, d_model= 64, max_len= 50, num_heads= 4, d_ff= 100, device= device)
+
         model.load_state_dict(torch.load(filepath, map_location= device))
+        model.to(device)
         model.eval()
+
     except FileNotFoundError:
         logging.error(f"File {filepath} does not exist.")
-        raise
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+
     return model
 
+def update_features_and_targets(i, test_features, test_targets, horizon_dict, device) -> tuple:
+    """
+    Updates the features and targets for the next prediction step.
+
+    args:   i: int
+            test_features: torch.tensor
+            test_targets: torch.tensor
+            horizon_dict: dict
+            device: torch.device
+    returns: tuple
+    """
+    if i > 0:
+        test_features_sliced = test_features[:, 1:, :].to(device)
+
+        for idx, test_feature in enumerate(test_features_sliced):
+            previous_prediction = horizon_dict[i-1][idx]
+            
+            if previous_prediction.dim() == 0:
+                previous_prediction = previous_prediction.unsqueeze(0)
+
+            new_feature = torch.cat((previous_prediction, test_feature[-1][1:]), dim=0).unsqueeze(0)
+            test_features[idx] = torch.cat((test_feature, new_feature), dim=0)
+        
+        test_targets = torch.cat((test_targets[i:].to(device), torch.zeros(i, test_targets.shape[1]).to(device)), dim=0)
+
+    return test_features.to(device), test_targets
+
 @st.cache_data
-def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 2) -> list:
+def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 1) -> list:
     """
     Create a prediction from a pre-trained model for a given time range.
 
@@ -67,9 +102,9 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
             scaling: bool
             target: str
             features: list
-            start_date: str
-            end_date: str
             device_ids: list
+            start_date: str
+            horizon_step: int
     returns: list
     """
     data = load_data(filename= filepath)
@@ -98,28 +133,12 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = load_model(model_name, device)
-        model.to(device)
-        model.eval()
-        
+
         horizon_dict = {}
         for i in range(horizon_step):
             with torch.no_grad():
-                if i > 0:
-                    test_features_sliced = test_features[:,1:,:].to(device)
-                test_features_horizon = test_features
-                if i > 0:
-                    for idx,test_feature in enumerate(test_features_sliced):
-                        if horizon_dict[i-1][idx].dim() == 0:
-                            test_features_horizon[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx].unsqueeze(0), test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
-                        else:
-                            test_features_horizon[idx] = torch.cat((test_feature,torch.cat((horizon_dict[i-1][idx], test_feature[-1][1:]), dim=0).unsqueeze(0)), dim=0)
-                test_targets = test_targets[i:].to(device)
-                if i > 0:
-                    zeros = torch.zeros(i, test_targets.shape[1]).to(device)
-                    test_targets = torch.cat((test_targets, zeros), dim=0)
-                test_features = test_features_horizon
-                test_features_horizon = test_features_horizon.to(device)
-                predictions = model(test_features_horizon)
+                test_features, test_targets = update_features_and_targets(i, test_features, test_targets, horizon_dict, device)
+                predictions = model(test_features)
                 horizon_dict[i] = predictions
 
         test_loss = nn.MSELoss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
@@ -138,7 +157,6 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
         output = [predictions, targets, test_loss]
 
     return output
-
 
 @st.cache_data
 def create_ensemble(model_predictions, targets) -> list:
@@ -187,7 +205,7 @@ def plot_predictions(x, targets, predictions, loss):
         st.plotly_chart(fig, use_container_width=True)
         st.write("loss: ", loss.item())
 
-def prepare_data(input_device, df, key_prefix):
+def prepare_data(input_device, df, key_prefix) -> pd.DataFrame:
     df_gaps = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False) if input_device == "all" else df[(df["device_id"].astype(str) == input_device)]
     min_date = df_gaps["date_time"].min().date()
     max_date = df_gaps["date_time"].max().date()
@@ -201,8 +219,8 @@ def prepare_data(input_device, df, key_prefix):
 # Load data
 a0 = ["a017", "a014"]
 a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
-FILENAME = "agg_hourly.parquet"
 OUTPUT_COLS = ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"]
+FILENAME = "agg_hourly.parquet"
 
 data = load_data(FILENAME)
 df = deepcopy(data)
@@ -211,22 +229,21 @@ df = deepcopy(data)
 st.sidebar.header("Prediction Dashboard Building A")
 
 # Page Content
-tmp_tab1, tab_trend, tab_pred = st.tabs(["Tmp gaps", "Tmp trend", "Tmp pred"])
+tmp_tab1, tab_pred = st.tabs(["Tmp gaps", "Tmp pred"])
 
 
 with tmp_tab1:
     input_device = st.selectbox(label= "Select Room", key= "roompicker_tab1", options= data["device_id"].unique().tolist() + ["all"], index= 2)
+    input_trend = st.selectbox(label= "Select Trendline", key= "trendpicker_tab1", options= [False, True], index= 0)
     df_filtered = prepare_data(input_device, df, "tab1")
     st.markdown("### Temperature in °C from" + f" {df_filtered['date_time'].min().date()} to {df_filtered['date_time'].max().date()}")
-    st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width=True)
-    st.dataframe(df_filtered)
+    
+    if input_trend:
+        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
+    
+    else:
+        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width=True)
 
-
-with tab_trend:
-    input_device = st.selectbox(label= "Select Room", key= "roompicker_tab2", options= data["device_id"].unique().tolist() + ["all"], index= 2)
-    df_filtered = prepare_data(input_device, df, "tab2")
-    st.markdown("### Temperature in °C with trendline")
-    st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
     st.dataframe(df_filtered)
 
 
