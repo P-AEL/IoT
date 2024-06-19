@@ -6,7 +6,7 @@ Predicting future values with Transformer/LSTM
 * Installation
 * Starting the Application
 
-![Screenshot](readme_source/Screenshot 2024-06-19 142528.png)
+![Screenshot](readme_source/Screenshot.png)
 
 
 Clone repository:
