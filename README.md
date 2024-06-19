@@ -8,6 +8,12 @@ Predicting future values with Transformer/LSTM
 
 ![Screenshot](readme_source/Screenshot.png)
 
+![Screenshot2](readme_source/Screenshot2.png)
+
+![Screenshot3](readme_source/Screenshot3.png)
+
+![Screenshot3](readme_source/Screenshot4.png)
+
 
 Clone repository:
 
