@@ -56,8 +56,6 @@ def load_model(model_name: str, device: torch.device):
             model = foo.Decoder(input= 4, d_model= 64, max_len= 50, num_heads= 4, d_ff= 100, device= device)
 
         model.load_state_dict(torch.load(filepath, map_location= device))
-        model.to(device)
-        model.eval()
 
     except FileNotFoundError:
         logging.error(f"File {filepath} does not exist.")
@@ -90,7 +88,7 @@ def update_features_and_targets(i, test_features, test_targets, horizon_dict, de
         
         test_targets = torch.cat((test_targets[i:].to(device), torch.zeros(i, test_targets.shape[1]).to(device)), dim=0)
 
-    return test_features.to(device), test_targets.to(device)
+    return test_features.to(device), test_targets.to(device).to(device)
 
 @st.cache_data
 def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 1) -> list:
@@ -133,6 +131,9 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
 
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         model = load_model(model_name, device)
+        model.to(device)
+        model.eval()
+
         horizon_dict = {}
         for i in range(horizon_step):
             with torch.no_grad():
