@@ -8,14 +8,14 @@ Predicting future values with Transformer/LSTM
 
 
 Clone repository:
-bash
+
 git clone https://github.com/P-AEL/IoT.git
 
 
 Install dependency:
-bash
+
 pip install -r requirements.txt
 
 Starting the dashboard
-bash
+
 streamlit run ./main/dashboard.py
