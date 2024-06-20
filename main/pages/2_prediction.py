@@ -85,8 +85,11 @@ def load_data(filename: str = "agg_hourly.parquet",use_influx_db: bool = False) 
             df_new.append([time, device_id, tmp, hum, CO2, VOC, vis, IR, WIFI, BLE, rssi, channel_rssi, snr, gateway, channel_index, spreading_factor, bandwidth, f_cnt])
         df_new = pd.DataFrame(df_new, columns=['date_time', 'device_id', 'tmp', 'hum', 'CO2', 'VOC', 'vis', 'IR', 'WIFI', 'BLE', 'rssi', 'channel_rssi', 'snr', 'gateway', 'channel_index', 'spreading_factor', 'bandwidth', 'f_cnt'])
         if filename == "agg_hourly.parquet":
-            df_new = group_data(df_new, freq="h") ### Muss irgendwie group data funktion aufrufen dont care wie
+            df_new = dp.group_data(df_new, freq="h") ### Muss irgendwie group data funktion aufrufen dont care wie
     return df_new
+
+
+
 @st.cache_resource
 def load_model(model_name: str, device: torch.device):
     """
