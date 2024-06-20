@@ -1,4 +1,7 @@
 import streamlit as st, dataprep as dp, pandas as pd
+import os 
+import logging
+logging.basicConfig(level=logging.INFO)
 
 st.set_page_config(
     layout="wide",
@@ -16,14 +19,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-FILENAME = "output.parquet"
-data = dp.load_data(FILENAME)
+# Functions
+@st.cache_data
+def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
+    """
+    Loads data from given filename.
+
+    args:   filename: str
+    returns pd.DataFrame
+    """
+    filepath = os.path.join("./data/aggregated_data/", filename)
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+    
+    df = pd.read_parquet(filepath)
+    return df
+
 
 #Sidebar
 st.sidebar.header("Monitoring Dashbaord for building A")
 input_col = st.sidebar.selectbox(label= "Select col to display", options= ["tmp", "hum", "CO2", "VOC", "WIFI"], index= 0)
 input_agg = st.sidebar.selectbox(label= "Select input_agg level", options= ["d", "w", "m", "y"], index= 0)
 input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
+
+# Load data
+FILENAME = "output.parquet"
+data = dp.load_data(FILENAME)
 
 unit_dict = {
     "tmp": "°C",

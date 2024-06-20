@@ -3,6 +3,9 @@ from stpyvista import stpyvista
 from datetime import date
 from pyvista_test import plot_cube
 from copy import deepcopy
+import os 
+import logging
+logging.basicConfig(level=logging.INFO)
 
 
 # Page config
@@ -11,6 +14,23 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Functions
+@st.cache_data
+def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
+    """
+    Loads data from given filename.
+
+    args:   filename: str
+    returns pd.DataFrame
+    """
+    filepath = os.path.join("./data/aggregated_data/", filename)
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+    
+    df = pd.read_parquet(filepath)
+    return df    
 
 # Load data
 FILENAME = "agg_hourly.parquet"

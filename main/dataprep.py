@@ -95,7 +95,6 @@ def cutoff_data(df: pd.DataFrame, start_date: str, end_date: str) -> pd.DataFram
     return df[df["date_time"].between(start_date, end_date)]
 
 
-@st.cache_data
 def build_lvl_df(df: pd.DataFrame, device_ids: list, output_cols: list, reset_ind: bool=True) -> pd.DataFrame:
     """
     args:   df: pd.DataFrame
@@ -145,7 +144,13 @@ Data = namedtuple('Data', ['x', 'y', 'scaler', 'loader'])
 
 def update_Data(obs: pd.DataFrame, window_size: int, target: str, features: list) -> Data:
     """
-    Convert a DataFrame into sequences of data.
+    Update the Data namedtuple.
+
+    args:   obs: pd.DataFrame
+            window_size: int
+            target: str
+            features: list
+    returns: Data
     """
     x = []
     y = []
@@ -161,19 +166,23 @@ def update_Data(obs: pd.DataFrame, window_size: int, target: str, features: list
 
     return Data(x, y, None, None)
 
-def create_DataLoader(filepath: str="data/aggregated_data/agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
+def create_DataLoader(filepath: str="agg_hourly.parquet", window_size: int=50, train_ratio: float=0.8, batch_size: int=64, target: str="tmp", features: list=["CO2", "hum", "VOC", "tmp"], scaling: bool=True) -> dict:
     """
-    Prepare data for training and testing.
-    """
-    check_file_exists(filepath)
+    Create a DataLoader for training and testing data.
 
-    _, file_extension = os.path.splitext(filepath)
-    if file_extension == '.csv':
-        df = pd.read_csv(filepath)
-    elif file_extension == '.parquet':
-        df = pd.read_parquet(filepath)
-    else:
-        print(f'Unsupported file type: {file_extension}')
+    args:   filepath: str
+            window_size: int
+            train_ratio: float
+            batch_size: int
+            target: str
+            features: list
+            scaling: bool
+
+    returns: dict
+    """
+    check_file_exists(filepath)  
+    data = pd.read_parquet(filepath)
+    df = deepcopy(data)
 
     df.date_time = pd.to_datetime(df.date_time)
     df = df[['device_id', 'date_time'] + features]

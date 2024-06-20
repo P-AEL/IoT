@@ -1,6 +1,10 @@
 import streamlit as st, dataprep as dp, pandas as pd, plotly.express as px
 from stoc import stoc
 from copy import deepcopy
+import os
+import logging
+logging.basicConfig(level=logging.INFO)
+
 
 st.set_page_config(
     layout="wide",
@@ -10,8 +14,34 @@ st.set_page_config(
 # Initialize stoc for generating a table of contents
 toc = stoc()
 
-# Unique plot funciton for this page 
+# Functions
+@st.cache_data
+def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
+    """
+    Loads data from given filename.
+
+    args:   filename: str
+    returns pd.DataFrame
+    """
+    filepath = os.path.join("./data/aggregated_data/", filename)
+    if not os.path.exists(filepath):
+        logging.error(f"File {filepath} does not exist.")
+        raise FileNotFoundError(f"File {filepath} does not exist.")
+    
+    df = pd.read_parquet(filepath)
+    return df
+
 def plt_data(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="device_id"):
+    """
+    Create a px.scatter plot with the given data.
+
+    args:  data: pd.DataFrame
+            x: str
+            y: str
+            color: str
+
+    returns plotly express fig
+    """
     fig = px.scatter(data, x= x, y= y, color= color)
     return fig
 
