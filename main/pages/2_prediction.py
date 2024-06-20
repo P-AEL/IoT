@@ -151,9 +151,8 @@ def update_features_and_targets(i, test_features, test_targets, horizon_dict, de
             if previous_prediction.dim() == 0:
                 previous_prediction = previous_prediction.unsqueeze(0)
 
-            new_feature = torch.cat((previous_prediction, test_feature[-1][1:]), dim=0).unsqueeze(0)
+            new_feature = torch.cat((previous_prediction, (0.8 *test_feature[-1][1:] + 0.2*test_feature[-2][1:] + np.random.normal(0, 0.1))), dim=0).unsqueeze(0)
             test_features[idx] = torch.cat((test_feature, new_feature), dim=0)
-        
         test_targets = torch.cat((test_targets[i:].to(device), torch.zeros(i, test_targets.shape[1]).to(device)), dim=0)
 
     return test_features.to(device), test_targets.to(device)
