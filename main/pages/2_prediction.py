@@ -11,7 +11,6 @@ logging.basicConfig(level=logging.INFO)
 import influxdb_client
 from influxdb_client import Point
 from influxdb_client.client.write_api import SYNCHRONOUS
-import pathlib
 
 
 # Page config
@@ -39,28 +38,55 @@ def load_data(filename: str = "agg_hourly.parquet",use_influx_db: bool = False) 
 
         # Client erstellen und Read/Write API anlegen
         write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
-        write_api = write_client.write_api(write_options=SYNCHRONOUS)
         query_api = write_client.query_api()
-        query = f"""from(bucket: "{bucket}")"""
-        column_names = ['column1', 'column2', 'column3']
+        query = f"""from(bucket: "{bucket}")
+        |> range(start: 2021-03-17T23:30:00Z)"""
 
-        # Query ausführen
         tables = query_api.query(query, org=org)
 
-        # Ergebnis in DataFrame umwandeln
         data = []
         for table in tables:
             for record in table.records:
-                data.append([record.get_time()] + record.get_value())
+                # Extract the necessary fields
+                time = record.get_time()
+                value = record.get_value()
+                measurement = record.values.get('_measurement')
+                field = record.values.get('_field')
+                sensor = record.values.get('sensor')
+                
+                # Append to data list
+                data.append([time, value, measurement, field, sensor])
 
-        # Angenommen, Ihre Spaltennamen sind in einer Liste namens column_names
-        column_names = ['date_time'] + column_names
+        # Define column names
+        column_names = ['date_time', 'value', 'measurement', 'field', 'sensor']
 
+        # Create the DataFrame
         df = pd.DataFrame(data, columns=column_names)
+        df_new = []
+        for time in df['date_time'].unique():
+            df_time = df.loc[df['date_time'] == time]
+            tmp = df_time[df_time['field'] == 'tmp']['value'].values[0]
+            CO2 = df_time[df_time['field'] == 'CO2']['value'].values[0]
+            BLE = df_time[df_time['field'] == 'BLE']['value'].values[0]
+            IR = df_time[df_time['field'] == 'IR']['value'].values[0]
+            WIFI = df_time[df_time['field'] == 'WIFI']['value'].values[0]
+            VOC = df_time[df_time['field'] == 'VOC']['value'].values[0]
+            bandwidth = df_time[df_time['field'] == 'bandwidth']['value'].values[0]
+            channel_index = df_time[df_time['field'] == 'channel_index']['value'].values[0]
+            channel_rssi = df_time[df_time['field'] == 'channel_rssi']['value'].values[0]
+            f_cnt = df_time[df_time['field'] == 'f_cnt']['value'].values[0]
+            hum = df_time[df_time['field'] == 'hum']['value'].values[0]
+            rssi = df_time[df_time['field'] == 'rssi']['value'].values[0]
+            spreading_factor = df_time[df_time['field'] == 'spreading_factor']['value'].values[0]
+            vis = df_time[df_time['field'] == 'vis']['value'].values[0]
+            device_id = df_time[df_time['field'] == 'device_id']['value'].values[0]
+            snr = df_time[df_time['field'] == 'snr']['value'].values[0]
+            gateway = df_time[df_time['field'] == 'gateway']['value'].values[0]
+            df_new.append([time, device_id, tmp, hum, CO2, VOC, vis, IR, WIFI, BLE, rssi, channel_rssi, snr, gateway, channel_index, spreading_factor, bandwidth, f_cnt])
+        df_new = pd.DataFrame(df_new, columns=['date_time', 'device_id', 'tmp', 'hum', 'CO2', 'VOC', 'vis', 'IR', 'WIFI', 'BLE', 'rssi', 'channel_rssi', 'snr', 'gateway', 'channel_index', 'spreading_factor', 'bandwidth', 'f_cnt'])
         if filename == "agg_hourly.parquet":
-            df = group_data(df, freq="h")
-    return df
-
+            df_new = group_data(df_new, freq="h") ### Muss irgendwie group data funktion aufrufen dont care wie
+    return df_new
 @st.cache_resource
 def load_model(model_name: str, device: torch.device):
     """
