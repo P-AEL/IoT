@@ -21,6 +21,8 @@ df = deepcopy(data)
 st.sidebar.header("Sensor Dashboard Building A")
 input_device = st.sidebar.selectbox(label= "Select Room", options= df["device_id"].unique().tolist() + ["all"], index= 2)
 input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10), min_value= df["date_time"].min(), max_value= df["date_time"].max())
+input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
+
 
 # Filter data
 a0 = ["a017", "a014"]

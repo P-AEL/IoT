@@ -23,6 +23,7 @@ data = dp.load_data(FILENAME)
 st.sidebar.header("Monitoring Dashbaord for building A")
 input_col = st.sidebar.selectbox(label= "Select col to display", options= ["tmp", "hum", "CO2", "VOC", "WIFI"], index= 0)
 input_agg = st.sidebar.selectbox(label= "Select input_agg level", options= ["d", "w", "m", "y"], index= 0)
+input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
 
 unit_dict = {
     "tmp": "°C",

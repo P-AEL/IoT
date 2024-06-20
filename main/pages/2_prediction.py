@@ -8,6 +8,10 @@ from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
 from copy import deepcopy
 logging.basicConfig(level=logging.INFO)
+import influxdb_client
+from influxdb_client import Point
+from influxdb_client.client.write_api import SYNCHRONOUS
+import pathlib
 
 
 # Page config
@@ -19,20 +23,42 @@ st.set_page_config(
 
 # Functions
 @st.cache_data
-def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
-    """
-    Load data from the aggregated_data folder.
+def load_data(filename: str = "agg_hourly.parquet",use_influx_db: bool = False) -> pd.DataFrame:
+    if not use_influx_db:
+        filepath = os.path.join("./data/aggregated_data/", filename)
+        if not os.path.exists(filepath):
+            logging.error(f"File {filepath} does not exist.")
+            raise FileNotFoundError(f"File {filepath} does not exist.")
+        df = pd.read_parquet(filepath)
+    else:
+        # Secrets
+        token = open("token.txt", "r").read()
+        url = "https://iwi-i-influx-db-01.hs-karlsruhe.de:8086"
+        bucket = "iot_gebaeude_a"
+        org = "Vorlesung"
 
-    args:   filename: str
-    returns: pd.DataFrame
-    """
-    filepath = os.path.join("./data/aggregated_data/", filename)
-    if not os.path.exists(filepath):
-        logging.error(f"File {filepath} does not exist.")
-        raise FileNotFoundError(f"File {filepath} does not exist.")
-    
-    df = pd.read_parquet(filepath)
-    
+        # Client erstellen und Read/Write API anlegen
+        write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
+        write_api = write_client.write_api(write_options=SYNCHRONOUS)
+        query_api = write_client.query_api()
+        query = f"""from(bucket: "{bucket}")"""
+        column_names = ['column1', 'column2', 'column3']
+
+        # Query ausführen
+        tables = query_api.query(query, org=org)
+
+        # Ergebnis in DataFrame umwandeln
+        data = []
+        for table in tables:
+            for record in table.records:
+                data.append([record.get_time()] + record.get_value())
+
+        # Angenommen, Ihre Spaltennamen sind in einer Liste namens column_names
+        column_names = ['date_time'] + column_names
+
+        df = pd.DataFrame(data, columns=column_names)
+        if filename == "agg_hourly.parquet":
+            df = group_data(df, freq="h")
     return df
 
 @st.cache_resource
@@ -227,6 +253,8 @@ df = deepcopy(data)
 
 # Sidebar
 st.sidebar.header("Prediction Dashboard Building A")
+input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
+
 
 # Page Content
 tmp_tab1, tab_pred = st.tabs(["Tmp gaps", "Tmp pred"])

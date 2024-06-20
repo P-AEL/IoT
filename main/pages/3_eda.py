@@ -23,6 +23,7 @@ df = deepcopy(data)
 
 # Sidebar
 st.sidebar.header("EDA for building A")
+input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
 
 
 # Page content
