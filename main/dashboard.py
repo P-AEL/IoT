@@ -34,7 +34,7 @@ def load_data(filename: str = "agg_hourly.parquet") -> pd.DataFrame:
 
 # Load data
 FILENAME = "agg_hourly.parquet"
-data = dp.load_data(FILENAME)
+data = load_data(FILENAME)
 df = deepcopy(data)
 
 # Sidebar

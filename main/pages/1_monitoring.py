@@ -45,7 +45,7 @@ input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value
 
 # Load data
 FILENAME = "output.parquet"
-data = dp.load_data(FILENAME)
+data = load_data(FILENAME)
 
 unit_dict = {
     "tmp": "°C",

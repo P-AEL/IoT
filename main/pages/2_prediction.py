@@ -3,6 +3,7 @@ import torch
 import foo
 import logging
 import os
+import json
 from datetime import datetime, date, time
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.preprocessing import StandardScaler
@@ -20,42 +21,58 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Functions
-@st.cache_data
-def load_data(filename: str = "agg_hourly.parquet",use_influx_db: bool = False) -> pd.DataFrame:
-    if not use_influx_db:
-        filepath = os.path.join("./data/aggregated_data/", filename)
-        if not os.path.exists(filepath):
-            logging.error(f"File {filepath} does not exist.")
-            raise FileNotFoundError(f"File {filepath} does not exist.")
-        df = pd.read_parquet(filepath)
-    else:
-        # Secrets
-        token = open("token.txt", "r").read()
-        url = "https://iwi-i-influx-db-01.hs-karlsruhe.de:8086"
-        bucket = "iot_gebaeude_a"
-        org = "Vorlesung"
 
-        # Client erstellen und Read/Write API anlegen
-        write_client = influxdb_client.InfluxDBClient(url=url, token=token, org=org)
-        query_api = write_client.query_api()
-        query = f"""from(bucket: "{bucket}")
+# Functions
+def read_credentials(filename: str= "credentials.txt"):
+    """
+    Reads the credentials from a given filename.
+
+    args:   filename: str
+    returns: dict
+    """
+    with open(filename, "r") as file:
+        credentials = json.load(file)
+    return credentials
+
+
+def extract_data_from_influxdb(credentials, query):
+    # Client erstellen und Read/Write API anlegen
+    write_client = influxdb_client.InfluxDBClient(url= credentials['url'], token= credentials['token'], org= credentials['org'])
+    query_api = write_client.query_api()
+    tables = query_api.query(query, org= credentials['org'])
+
+    data = []
+    for table in tables:
+        for record in table.records:
+            # Extract the necessary fields
+            time = record.get_time()
+            value = record.get_value()
+            measurement = record.values.get('_measurement')
+            field = record.values.get('_field')
+            sensor = record.values.get('sensor')
+            
+            # Append to data list
+            data.append([time, value, measurement, field, sensor])
+    return data
+
+@st.cache_data
+def load_data(filename: str= "agg_hourly.parquet", use_influx_db: bool= False) -> pd.DataFrame:
+    """
+    Loads data from given filename or InfluxDB.
+    
+    args:   filename: str
+            use_influx_db: bool
+    returns pd.DataFrame
+    """
+    df_new = []
+
+    if use_influx_db:
+        # Get credentials for InfluxDB
+        credentials = read_credentials("credentials.json")
+        query = f"""from(bucket: "{credentials['bucket']}")
         |> range(start: 2021-03-17T23:30:00Z)"""
 
-        tables = query_api.query(query, org=org)
-
-        data = []
-        for table in tables:
-            for record in table.records:
-                # Extract the necessary fields
-                time = record.get_time()
-                value = record.get_value()
-                measurement = record.values.get('_measurement')
-                field = record.values.get('_field')
-                sensor = record.values.get('sensor')
-                
-                # Append to data list
-                data.append([time, value, measurement, field, sensor])
+        data = extract_data_from_influxdb(credentials, query)
 
         # Define column names
         column_names = ['date_time', 'value', 'measurement', 'field', 'sensor']
@@ -63,31 +80,27 @@ def load_data(filename: str = "agg_hourly.parquet",use_influx_db: bool = False) 
         # Create the DataFrame
         df = pd.DataFrame(data, columns=column_names)
         df_new = []
+        fields = ['tmp', 'CO2', 'BLE', 'IR', 'WIFI', 'VOC', 'bandwidth', 'channel_index', 'channel_rssi', 'f_cnt', 'hum', 'rssi', 'spreading_factor', 'vis', 'device_id', 'snr', 'gateway']
         for time in df['date_time'].unique():
             df_time = df.loc[df['date_time'] == time]
-            tmp = df_time[df_time['field'] == 'tmp']['value'].values[0]
-            CO2 = df_time[df_time['field'] == 'CO2']['value'].values[0]
-            BLE = df_time[df_time['field'] == 'BLE']['value'].values[0]
-            IR = df_time[df_time['field'] == 'IR']['value'].values[0]
-            WIFI = df_time[df_time['field'] == 'WIFI']['value'].values[0]
-            VOC = df_time[df_time['field'] == 'VOC']['value'].values[0]
-            bandwidth = df_time[df_time['field'] == 'bandwidth']['value'].values[0]
-            channel_index = df_time[df_time['field'] == 'channel_index']['value'].values[0]
-            channel_rssi = df_time[df_time['field'] == 'channel_rssi']['value'].values[0]
-            f_cnt = df_time[df_time['field'] == 'f_cnt']['value'].values[0]
-            hum = df_time[df_time['field'] == 'hum']['value'].values[0]
-            rssi = df_time[df_time['field'] == 'rssi']['value'].values[0]
-            spreading_factor = df_time[df_time['field'] == 'spreading_factor']['value'].values[0]
-            vis = df_time[df_time['field'] == 'vis']['value'].values[0]
-            device_id = df_time[df_time['field'] == 'device_id']['value'].values[0]
-            snr = df_time[df_time['field'] == 'snr']['value'].values[0]
-            gateway = df_time[df_time['field'] == 'gateway']['value'].values[0]
-            df_new.append([time, device_id, tmp, hum, CO2, VOC, vis, IR, WIFI, BLE, rssi, channel_rssi, snr, gateway, channel_index, spreading_factor, bandwidth, f_cnt])
-        df_new = pd.DataFrame(df_new, columns=['date_time', 'device_id', 'tmp', 'hum', 'CO2', 'VOC', 'vis', 'IR', 'WIFI', 'BLE', 'rssi', 'channel_rssi', 'snr', 'gateway', 'channel_index', 'spreading_factor', 'bandwidth', 'f_cnt'])
-        if filename == "agg_hourly.parquet":
-            df_new = dp.group_data(df_new, freq="h") ### Muss irgendwie group data funktion aufrufen dont care wie
-    return df_new
+            row = [time]
+            for field in fields:
+                row.append(df_time[df_time['field'] == field]['value'].values[0])
+            df_new.append(row)
 
+        df_new = pd.DataFrame(df_new, columns=['date_time'] + fields)
+    
+        if filename == "agg_hourly.parquet":
+            df_new = dp.group_data(df_new, freq="h") 
+
+    try:
+        filepath = os.path.join("./data/aggregated_data/", filename)
+        df_new = pd.read_parquet(filepath)
+    except FileNotFoundError:
+        logging.error(f"File {filepath} does not exist.")
+        raise
+
+    return df_new
 
 
 @st.cache_resource
@@ -271,18 +284,20 @@ def prepare_data(input_device, df, key_prefix) -> pd.DataFrame:
 
     return df_filtered
 
+# Sidebar
+st.sidebar.header("Prediction Dashboard Building A")
+input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
+
+
 # Load data
 a0 = ["a017", "a014"]
 a1 = ["a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"]
 OUTPUT_COLS = ["tmp", "hum", "snr", "CO2", "VOC", "vis", "IR", "WIFI", "BLE", "rssi", "channel_rssi", "channel_index", "spreading_factor", "bandwidth", "f_cnt"]
 FILENAME = "agg_hourly.parquet"
 
-data = load_data(FILENAME)
+data = load_data(FILENAME, use_influx_db= input_use_influx_db_data)
 df = deepcopy(data)
 
-# Sidebar
-st.sidebar.header("Prediction Dashboard Building A")
-input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
 
 
 # Page Content

@@ -47,7 +47,7 @@ def plt_data(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="
 
 # Load data
 FILENAME = "agg_hourly.parquet"
-data = dp.load_data(FILENAME)
+data = load_data(FILENAME)
 df = deepcopy(data)
 
 
