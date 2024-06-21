@@ -21,6 +21,8 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+FILEPATH_INFLUXDB_CREDENTIALS = "/Users/florian/Documents/github/study/IoT/IoT/credentials.json"
+
 
 # Functions
 def read_credentials(filename: str= "credentials.json"):
@@ -36,12 +38,24 @@ def read_credentials(filename: str= "credentials.json"):
     return credentials
 
 def make_tz_naive(timestamp):
+    """
+    Makes a timestamp timezone naive.
+
+    args:   timestamp: timestamp
+    returns: timestamp
+    """
     if timestamp.tzinfo is not None:
         return timestamp.tz_convert(None).tz_localize(None)
     return timestamp
 
-def extract_data_from_influxdb(credentials, query):
-    # Client erstellen und Read/Write API anlegen
+def extract_data_from_influxdb(credentials, query) -> list:
+    """
+    Create client and instantiate read/write API
+
+    args:   credentials: dict
+            query: str
+    returns: list
+    """
     write_client = influxdb_client.InfluxDBClient(url= credentials['url'], token= credentials['token'], org= credentials['org'])
     query_api = write_client.query_api()
     tables = query_api.query(query, org= credentials['org'])
@@ -73,7 +87,7 @@ def load_data(filename: str= "agg_hourly.parquet", use_influx_db: bool= False) -
 
     if use_influx_db:
         # Get credentials for InfluxDB
-        credentials = read_credentials("C:/Users/paulh/Desktop/6.semester/Iot/IoT/main/pages/credentials.json")
+        credentials = read_credentials(FILEPATH_INFLUXDB_CREDENTIALS)
         query = f"""from(bucket: "{credentials['bucket']}")
         |> range(start: 2021-03-17T23:30:00Z)"""
 
@@ -117,7 +131,6 @@ def load_data(filename: str= "agg_hourly.parquet", use_influx_db: bool= False) -
         raise
 
     return df_new
-
 
 @st.cache_resource
 def load_model(model_name: str, device: torch.device):
@@ -301,8 +314,21 @@ def prepare_data(input_device, df, key_prefix) -> pd.DataFrame:
 
 # Sidebar
 st.sidebar.header("Prediction Dashboard Building A")
-input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
 
+# Initialize session state
+if "influxdb" not in st.session_state:
+    st.session_state["influxdb"] = False
+
+# Use the session state value as the default value for the checkbox
+input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+
+# Update the session state value if the checkbox value changes
+if input_use_influx_db_data != st.session_state["influxdb"]:
+    st.session_state["influxdb"] = input_use_influx_db_data
+    if input_use_influx_db_data:
+        st.sidebar.write("InfluxDB data is used.")
+    else:
+        st.sidebar.write("InfluxDB data is not used.")
 
 # Load data
 a0 = ["a017", "a014"]

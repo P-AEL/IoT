@@ -53,7 +53,21 @@ df = deepcopy(data)
 
 # Sidebar
 st.sidebar.header("EDA for building A")
-input_use_influx_db_data = st.sidebar.checkbox(label= "Use InfluxDB data", value= False)
+
+# Initialize session state
+if "influxdb" not in st.session_state:
+    st.session_state["influxdb"] = False
+
+# Use the session state value as the default value for the checkbox
+input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+
+# Update the session state value if the checkbox value changes
+if input_use_influx_db_data != st.session_state["influxdb"]:
+    st.session_state["influxdb"] = input_use_influx_db_data
+    if input_use_influx_db_data:
+        st.sidebar.write("InfluxDB data is used.")
+    else:
+        st.sidebar.write("InfluxDB data is not used.")
 
 
 # Page content
