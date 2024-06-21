@@ -93,14 +93,14 @@ if input_agg == "d":
 
 elif input_agg == "w":
     unique_weeks = df["week"].unique()
-    week_labels = [f"{week.strftime("%d.%m.%Y")} - {(week + pd.DateOffset(days=6)).strftime("%d.%m.%Y")}" for week in unique_weeks]
+    week_labels = [f'{week.strftime("%d.%m.%Y")} - {(week + pd.DateOffset(days=6)).strftime("%d.%m.%Y")}' for week in unique_weeks]
     selected_label = st.sidebar.selectbox("Select week", week_labels)
     selected_value = unique_weeks[week_labels.index(selected_label)]
     filtered_data = df[df["week"] == selected_value]
 
 elif input_agg == "m":
     unique_months = df["month"].unique()
-    month_labels = [f"{month.strftime("%m/%Y")}" for month in unique_months]
+    month_labels = [f'{month.strftime("%m/%Y")}' for month in unique_months]
     selected_label = st.sidebar.selectbox("Select month", month_labels)
     selected_value = unique_months[month_labels.index(selected_label)]
     filtered_data = df[df["month"] == selected_value]
