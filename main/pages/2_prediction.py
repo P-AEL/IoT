@@ -23,17 +23,22 @@ st.set_page_config(
 
 
 # Functions
-def read_credentials(filename: str= "credentials.txt"):
+def read_credentials(filename: str= "credentials.json"):
     """
     Reads the credentials from a given filename.
 
     args:   filename: str
     returns: dict
     """
+    print("filename", filename)
     with open(filename, "r") as file:
         credentials = json.load(file)
     return credentials
 
+def make_tz_naive(timestamp):
+    if timestamp.tzinfo is not None:
+        return timestamp.tz_convert(None).tz_localize(None)
+    return timestamp
 
 def extract_data_from_influxdb(credentials, query):
     # Client erstellen und Read/Write API anlegen
@@ -68,7 +73,7 @@ def load_data(filename: str= "agg_hourly.parquet", use_influx_db: bool= False) -
 
     if use_influx_db:
         # Get credentials for InfluxDB
-        credentials = read_credentials("credentials.json")
+        credentials = read_credentials("C:/Users/paulh/Desktop/6.semester/Iot/IoT/main/pages/credentials.json")
         query = f"""from(bucket: "{credentials['bucket']}")
         |> range(start: 2021-03-17T23:30:00Z)"""
 
@@ -84,12 +89,23 @@ def load_data(filename: str= "agg_hourly.parquet", use_influx_db: bool= False) -
         for time in df['date_time'].unique():
             df_time = df.loc[df['date_time'] == time]
             row = [time]
-            for field in fields:
-                row.append(df_time[df_time['field'] == field]['value'].values[0])
+            for field in fields:        
+                row.append(df_time[df_time['measurement'].str.contains(field)]['value'].tolist()[0])
+
             df_new.append(row)
 
-        df_new = pd.DataFrame(df_new, columns=['date_time'] + fields)
-    
+        df_new_room_014 = pd.DataFrame(df_new, columns=['date_time'] + fields)
+        df_new_room_014['date_time'] = df_new_room_014['date_time'].apply(make_tz_naive)
+        try:
+            filepath = os.path.join("./data/aggregated_data/", filename)
+            df_new_without_room_014 = pd.read_parquet(filepath)
+        except FileNotFoundError:
+            logging.error(f"File {filepath} does not exist.")
+            raise
+        df_new_without_room_014 = df_new_without_room_014[df_new_without_room_014['device_id'] != 'a014']
+        df_new = pd.concat([df_new_room_014, df_new_without_room_014], ignore_index=True)
+        df_new.date_time = pd.to_datetime(df_new.date_time)
+
         if filename == "agg_hourly.parquet":
             df_new = dp.group_data(df_new, freq="h") 
 
