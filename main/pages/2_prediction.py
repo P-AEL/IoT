@@ -160,7 +160,7 @@ def load_model(model_name: str, device: torch.device):
 
     return model
 
-def update_features_and_targets(i, test_features, test_targets, horizon_dict, device) -> tuple:
+def update_features_and_targets(i, test_features, test_targets, horizon_dict, device, beta) -> tuple:
     """
     Updates the features and targets for the next prediction step.
 
@@ -180,14 +180,14 @@ def update_features_and_targets(i, test_features, test_targets, horizon_dict, de
             if previous_prediction.dim() == 0:
                 previous_prediction = previous_prediction.unsqueeze(0)
 
-            new_feature = torch.cat((previous_prediction, (0.8 *test_feature[-1][1:] + 0.2*test_feature[-2][1:] + np.random.normal(0, 0.1))), dim=0).unsqueeze(0)
+            new_feature = torch.cat((previous_prediction, (beta * test_feature[-1][1:] + (beta-1) * test_feature[-2][1:] + np.random.normal(0, 0.1))), dim=0).unsqueeze(0)
             test_features[idx] = torch.cat((test_feature, new_feature), dim=0)
         test_targets = torch.cat((test_targets[i:].to(device), torch.zeros(i, test_targets.shape[1]).to(device)), dim=0)
 
     return test_features.to(device), test_targets.to(device)
 
 @st.cache_data
-def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 1) -> list:
+def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LSTM", scaling: bool= True, target: str= "tmp", features: list=["tmp", "hum", "VOC", "CO2"], device_ids: list= ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"], start_date: str= "", horizon_step: int= 1, beta: float= 0.8) -> list:
     """
     Create a prediction from a pre-trained model for a given time range.
 
@@ -233,11 +233,11 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
         horizon_dict = {}
         for i in range(horizon_step):
             with torch.no_grad():
-                test_features, test_targets = update_features_and_targets(i, test_features, test_targets, horizon_dict, device)
+                test_features, test_targets = update_features_and_targets(i, test_features, test_targets, horizon_dict, device, beta)
                 predictions = model(test_features)
                 horizon_dict[i] = predictions
 
-        test_loss = nn.MSELoss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
+        test_loss = nn.L1Loss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
 
         if scaling:
             feature_index = 0
@@ -248,7 +248,7 @@ def create_Prediction(filepath: str= "agg_hourly.parquet", model_name: str= "LST
             targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
             predictions = feature_scaler.inverse_transform(horizon_dict[horizon_step-1].to("cpu").numpy().reshape(-1, 1))
             
-            test_loss = nn.MSELoss()(torch.from_numpy(predictions[:-horizon_step]), torch.from_numpy(targets[:-horizon_step]))
+            test_loss = nn.L1Loss()(torch.from_numpy(predictions[:-horizon_step]), torch.from_numpy(targets[:-horizon_step]))
         
         output = [predictions, targets, test_loss]
 
@@ -299,7 +299,7 @@ def plot_predictions(x, targets, predictions, loss):
             layout=dict(title="Temperature in °C with predictions")
         )
         st.plotly_chart(fig, use_container_width=True)
-        st.write("loss: ", loss.item())
+        st.write("loss in °C:", loss.item())
 
 def prepare_data(input_device, df, key_prefix) -> pd.DataFrame:
     df_gaps = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False) if input_device == "all" else df[(df["device_id"].astype(str) == input_device)]
@@ -369,9 +369,10 @@ with tab_pred:
     input_pred_start_datetime = datetime.combine(input_pred_start_date, input_pred_start_time)
     
     input_pred_step_size = st.number_input(label= "Select Horizon Step", value= 2, min_value= 1, max_value= 4)
+    input_beta = st.number_input(label= "Select Beta", value= 0.8, min_value= 0.1, max_value= 1.0, step= 0.1)
 
     if input_pred_model == "LSTM":
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         loss = pred_data[2]
@@ -380,7 +381,7 @@ with tab_pred:
         plot_predictions(x, inversed_targets, inversed_predicitons, loss)
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
@@ -389,8 +390,8 @@ with tab_pred:
         plot_predictions(x, targets, predictions, loss)
 
     elif input_pred_model == "Ensemble":    
-        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
-        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size)
+        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
+        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling= True, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
         predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
         ensemble = create_ensemble([predictions_lstm, predictions_trsnf], targets_lstm)
