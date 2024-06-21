@@ -3,7 +3,6 @@ import sys
 import torch
 import logging
 import optuna
-import pandas as pd
 from optuna.trial import TrialState
 from copy import deepcopy 
 from tqdm import tqdm
@@ -98,3 +97,5 @@ if __name__ == "__main__":
 
     trials = study.trials_dataframe()
     trials.to_csv(FILEPATH_STUDY)
+
+    
