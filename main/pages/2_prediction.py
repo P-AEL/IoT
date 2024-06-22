@@ -202,7 +202,6 @@ def update_features_and_targets(
 def create_Prediction(
         filepath: str = "agg_hourly.parquet",
         model_name: str = "LSTM",
-        scaling: bool = True,
         target: str = "tmp",
         features: list = ["tmp", "hum", "VOC", "CO2"],
         device_ids: list = ["a017", "a014", "a101", "a102", "a103", "a106", "a107", "a108", "a111", "a112"],
@@ -230,16 +229,11 @@ def create_Prediction(
         df = dp.build_lvl_df(df, device_ids= device_ids, output_cols= features, reset_ind= True)
         df["target"] = df[f"{target}"].shift(-1)
 
-        if scaling:
-            scaler = StandardScaler()
-            df_scaled = scaler.fit_transform(df)
+        scaler = StandardScaler()
+        df_scaled = scaler.fit_transform(df)
 
-            X = dp.format_tensor(torch.tensor(df_scaled[:, :-1], dtype= torch.float32), 50)
-            y = torch.tensor(df_scaled[:-1, -1], dtype= torch.float32).view(-1, 1)
-        
-        else:
-            X = dp.format_tensor(torch.tensor(df.iloc[:, :-1].values, dtype=torch.float32), 50)
-            y = torch.tensor(df.iloc[:-1, -1].values, dtype=torch.float32).view(-1, 1)
+        X = dp.format_tensor(torch.tensor(df_scaled[:, :-1], dtype= torch.float32), 50)
+        y = torch.tensor(df_scaled[:-1, -1], dtype= torch.float32).view(-1, 1)
 
         data_loader = DataLoader(TensorDataset(X, y), shuffle=False, batch_size=64) 
         test_features, test_targets = next(iter(data_loader))
@@ -256,18 +250,15 @@ def create_Prediction(
                 predictions = model(test_features)
                 horizon_dict[i] = predictions
 
-        test_loss = nn.L1Loss()(horizon_dict[horizon_step-1], test_targets.squeeze(-1)) if model_name == "Transformer" else nn.MSELoss()(horizon_dict[horizon_step-1], test_targets) 
+        feature_index = 0
+        feature_scaler = StandardScaler()
+        feature_scaler.mean_ = scaler.mean_[feature_index]
+        feature_scaler.scale_ = scaler.scale_[feature_index]
 
-        if scaling:
-            feature_index = 0
-            feature_scaler = StandardScaler()
-            feature_scaler.mean_ = scaler.mean_[feature_index]
-            feature_scaler.scale_ = scaler.scale_[feature_index]
-
-            test_targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
-            predictions = feature_scaler.inverse_transform(horizon_dict[horizon_step-1].to("cpu").numpy().reshape(-1, 1))
-            
-            test_loss = nn.L1Loss()(torch.from_numpy(predictions[:-horizon_step]), torch.from_numpy(test_targets[:-horizon_step]))
+        test_targets = feature_scaler.inverse_transform(test_targets.to("cpu").numpy().reshape(-1, 1))
+        predictions = feature_scaler.inverse_transform(horizon_dict[horizon_step-1].to("cpu").numpy().reshape(-1, 1))
+        
+        test_loss = nn.L1Loss()(torch.from_numpy(predictions[:-horizon_step]), torch.from_numpy(test_targets[:-horizon_step]))
         
         output = [predictions, test_targets, test_loss]
 
@@ -405,12 +396,11 @@ with tab_pred:
         input_pred_start_datetime = datetime.combine(input_pred_start_date, input_pred_start_time)
     
     with col_right:
-        input_pred_scaling = st.selectbox(label= "Select Scaling", options= [False, True], index= 1)
         input_pred_step_size = st.number_input(label= "Select Horizon Step", value= 2, min_value= 1, max_value= 4)
         input_beta = st.number_input(label= "Select Beta", value= 0.8, min_value= 0.1, max_value= 1.0, step= 0.1)
 
     if input_pred_model == "LSTM":
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling= input_pred_scaling, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "LSTM", start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         inversed_predicitons = pred_data[0]
         inversed_targets = pred_data[1] 
         loss = pred_data[2]
@@ -419,7 +409,7 @@ with tab_pred:
         plot_predictions(x, inversed_targets, inversed_predicitons, loss)
 
     elif input_pred_model == "Transformer":    
-        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling = input_pred_scaling, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
+        pred_data = create_Prediction(filepath= FILENAME, model_name= "Transformer", start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         predictions = pred_data[0]
         targets = pred_data[1] 
         loss = pred_data[2]
@@ -428,8 +418,8 @@ with tab_pred:
         plot_predictions(x, targets, predictions, loss)
 
     elif input_pred_model == "Ensemble":    
-        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", scaling = input_pred_scaling, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
-        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", scaling = input_pred_scaling, start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
+        pred_data_lstm = create_Prediction(filepath= FILENAME, model_name= "LSTM", start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
+        pred_data_trsnf = create_Prediction(filepath= FILENAME, model_name= "Transformer", start_date= input_pred_start_datetime, horizon_step= input_pred_step_size, beta= input_beta)
         predictions_lstm, targets_lstm, loss_lstm = pred_data_lstm[0], pred_data_lstm[1], pred_data_lstm[2]
         predictions_trsnf, targets_trsnf, loss_trnsf = pred_data_trsnf[0], pred_data_trsnf[1], pred_data_trsnf[2]
         ensemble = create_ensemble([predictions_lstm, predictions_trsnf], targets_lstm)
