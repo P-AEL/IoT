@@ -10,9 +10,6 @@ from sklearn.preprocessing import StandardScaler
 from copy import deepcopy
 logging.basicConfig(level=logging.INFO)
 import influxdb_client
-from influxdb_client import Point
-from influxdb_client.client.write_api import SYNCHRONOUS
-
 
 # Page config
 st.set_page_config(
