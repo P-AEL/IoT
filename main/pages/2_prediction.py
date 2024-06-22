@@ -301,7 +301,16 @@ def plot_predictions(x, targets, predictions, loss):
         st.plotly_chart(fig, use_container_width=True)
         st.write("loss in °C:", loss.item())
 
+@st.cache_data
 def prepare_data(input_device, df, key_prefix) -> pd.DataFrame:
+    """
+    Groups the data for the selected device.
+
+    args:   input_device: str
+            df: pd.DataFrame
+            key_prefix: str
+    returns: pd.DataFrame
+    """
     df_gaps = dp.build_lvl_df(df, a0 + a1, output_cols=OUTPUT_COLS, reset_ind=False).reset_index(drop=False) if input_device == "all" else df[(df["device_id"].astype(str) == input_device)]
     min_date = df_gaps["date_time"].min().date()
     max_date = df_gaps["date_time"].max().date()
@@ -352,10 +361,10 @@ with tmp_tab1:
     st.markdown("### Temperature in °C from" + f" {df_filtered['date_time'].min().date()} to {df_filtered['date_time'].max().date()}")
     
     if input_trend:
-        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline=True), use_container_width=True)
+        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", trendline= True), use_container_width= True)
     
     else:
-        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width=True)
+        st.plotly_chart(dp.plt_fig(df_filtered, "tmp", "markers"), use_container_width= True)
 
     st.dataframe(df_filtered)
 
