@@ -30,7 +30,7 @@ streamlit run ./main/dashboard.py
 
 Using the InfluxDB:
 
-To be able to use the data from the influxdb you need to edit the credentials.json with the specific api token and write the path to this file into the variable FILEPATH_INFLUXDB_CREDENTIALS in prediction.py
+To be able to use the data from the influxdb you need to edit the credentials.json with the specific api token and write the path to this file into the variable FILEPATH_INFLUXDB_CREDENTIALS in the different python pages
 
 Known Problems:
 
