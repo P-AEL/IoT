@@ -348,14 +348,13 @@ if "influxdb" not in st.session_state:
 
 # Use the session state value as the default value for the checkbox
 input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+st.session_state["influxdb"] = input_use_influx_db_data
 
 # Update the session state value if the checkbox value changes
-if input_use_influx_db_data != st.session_state["influxdb"]:
-    st.session_state["influxdb"] = input_use_influx_db_data
-    if input_use_influx_db_data:
-        st.sidebar.write("InfluxDB data is used.")
-    else:
-        st.sidebar.write("InfluxDB data is not used.")
+if st.session_state["influxdb"]:
+    st.sidebar.write("InfluxDB data is used.")
+else:
+    st.sidebar.write("InfluxDB data is not used.")
 
 # Load data
 a0 = ["a017", "a014"]
