@@ -21,6 +21,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+FILEPATH_INFLUXDB_CREDENTIALS = ""
+
 # Functions
 def read_credentials(
         filename: str= "credentials.json"

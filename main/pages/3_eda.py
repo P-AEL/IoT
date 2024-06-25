@@ -7,8 +7,6 @@ import json
 import logging
 logging.basicConfig(level=logging.INFO)
 
-
-
 st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
@@ -16,6 +14,9 @@ st.set_page_config(
 
 # Initialize stoc for generating a table of contents
 toc = stoc()
+
+
+FILEPATH_INFLUXDB_CREDENTIALS = ""
 
 # Functions
 def read_credentials(

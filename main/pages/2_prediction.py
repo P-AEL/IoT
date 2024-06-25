@@ -18,7 +18,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-FILEPATH_INFLUXDB_CREDENTIALS = "/Users/florian/Documents/github/study/IoT/IoT/credentials.json"
+FILEPATH_INFLUXDB_CREDENTIALS = ""
 
 # Functions
 def read_credentials(

@@ -10,6 +10,8 @@ import json
 logging.basicConfig(level=logging.INFO)
 
 
+FILEPATH_INFLUXDB_CREDENTIALS = ""
+
 # Page config
 st.set_page_config(
     page_title="Sensor Dashboard",
