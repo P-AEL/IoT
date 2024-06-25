@@ -139,12 +139,6 @@ def load_data(
 
     return df_new
 
-# Load data
-FILENAME = "agg_hourly.parquet"
-data = load_data(FILENAME)
-df = deepcopy(data)
-
-
 # Initialize session state
 if "influxdb" not in st.session_state:
     st.session_state["influxdb"] = False
@@ -155,14 +149,20 @@ input_device = st.sidebar.selectbox(label= "Select Room", options= df["device_id
 input_date = st.sidebar.date_input(label= "Select Date", value= date(2022,10,10), min_value= df["date_time"].min(), max_value= df["date_time"].max())
 
 # Use the session state value as the default value for the checkbox
-input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
-st.session_state["influxdb"] = input_use_influx_db_data
+st.session_state["influxdb"] = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+#st.session_state["influxdb"] = input_use_influx_db_data
 
 # Update the session state value if the checkbox value changes
 if st.session_state["influxdb"]:
     st.sidebar.write("InfluxDB data is used.")
 else:
     st.sidebar.write("InfluxDB data is not used.")
+
+# Load data
+FILENAME = "agg_hourly.parquet"
+data = load_data(FILENAME, use_influx_db= st.session_state["influxdb"])
+df = deepcopy(data)
+
 
 # Filter data
 a0 = ["a017", "a014"]

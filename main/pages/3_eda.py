@@ -152,11 +152,6 @@ def plt_data(data: pd.DataFrame, x: str= "data_time", y: str="tmp", color: str="
     fig = px.scatter(data, x= x, y= y, color= color)
     return fig
 
-# Load data
-FILENAME = "agg_hourly.parquet"
-data = load_data(FILENAME)
-df = deepcopy(data)
-
 
 # Sidebar
 st.sidebar.header("EDA for building A")
@@ -166,14 +161,19 @@ if "influxdb" not in st.session_state:
     st.session_state["influxdb"] = False
 
 # Use the session state value as the default value for the checkbox
-input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
-st.session_state["influxdb"] = input_use_influx_db_data
+st.session_state["influxdb"] = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+#st.session_state["influxdb"] = input_use_influx_db_data
 
 # Update the session state value if the checkbox value changes
 if st.session_state["influxdb"]:
     st.sidebar.write("InfluxDB data is used.")
 else:
     st.sidebar.write("InfluxDB data is not used.")
+
+# Load data
+FILENAME = "agg_hourly.parquet"
+data = load_data(FILENAME, use_influx_db = st.session_state["influxdb"])
+df = deepcopy(data)
 
 
 # Page content
