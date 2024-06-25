@@ -23,16 +23,14 @@ class LSTM(nn.Module):
         else:
             raise ValueError("Invalid activation function, choose from 'relu', 'tanh', or 'sigmoid'")
 
-        self.optimizer = optim.Adam(self.parameters(), lr=0.001)  # Erhöhte Lernrate für schnellere Konvergenz
-
     def forward(self, x):
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
         c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
 
         out, _ = self.lstm(x, (h0, c0))
-        out = self.dropout(out[:, -1, :])  # Dropout für Regularisierung
+        out = self.dropout(out[:, -1, :])  
         out = self.fc(out)
-        out = self.activation(out)  # Aktivierungsfunktion anwenden
+        out = self.activation(out)  
         return out
 
 class PositionalEncoding(torch.nn.Module):
