@@ -161,8 +161,8 @@ if "influxdb" not in st.session_state:
     st.session_state["influxdb"] = False
 
 # Use the session state value as the default value for the checkbox
-st.session_state["influxdb"] = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
-#st.session_state["influxdb"] = input_use_influx_db_data
+input_use_influx_db_data = st.sidebar.checkbox(label="Use InfluxDB data", value= st.session_state["influxdb"])
+st.session_state["influxdb"] = input_use_influx_db_data
 
 # Update the session state value if the checkbox value changes
 if st.session_state["influxdb"]:
@@ -172,7 +172,7 @@ else:
 
 # Load data
 FILENAME = "agg_hourly.parquet"
-data = load_data(FILENAME, use_influx_db = st.session_state["influxdb"])
+data = load_data(FILENAME, use_influx_db = input_use_influx_db_data)
 df = deepcopy(data)
 
 
